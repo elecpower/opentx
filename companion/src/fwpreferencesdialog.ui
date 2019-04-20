@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>416</width>
-    <height>154</height>
+    <height>180</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -26,41 +26,23 @@
    <string>Downloads</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <property name="leftMargin">
-    <number>6</number>
-   </property>
-   <property name="topMargin">
-    <number>6</number>
-   </property>
-   <property name="rightMargin">
-    <number>6</number>
-   </property>
-   <property name="bottomMargin">
-    <number>6</number>
-   </property>
    <property name="verticalSpacing">
     <number>2</number>
    </property>
-   <item row="23" column="3">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Ok</set>
+   <property name="margin">
+    <number>6</number>
+   </property>
+   <item row="5" column="3">
+    <widget class="QPushButton" name="fw_dnld">
+     <property name="text">
+      <string>Download firmware</string>
      </property>
     </widget>
    </item>
-   <item row="3" column="3">
-    <widget class="QPushButton" name="checkFWUpdates">
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>0</height>
-      </size>
-     </property>
+   <item row="3" column="1" colspan="2">
+    <widget class="QLabel" name="lastRevisionLbl">
      <property name="text">
-      <string>Check for updates</string>
+      <string notr="true">-</string>
      </property>
     </widget>
    </item>
@@ -87,31 +69,20 @@
      </property>
     </widget>
    </item>
-   <item row="5" column="3">
-    <widget class="QPushButton" name="fw_dnld">
-     <property name="text">
-      <string>Download firmware</string>
-     </property>
-    </widget>
-   </item>
-   <item row="22" column="0" colspan="4">
-    <widget class="Line" name="line_6">
+   <item row="25" column="3">
+    <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
-    </widget>
-   </item>
-   <item row="6" column="3">
-    <widget class="QPushButton" name="sd_dnld">
-     <property name="text">
-      <string>Download SD contents</string>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Ok</set>
      </property>
     </widget>
    </item>
-   <item row="3" column="1" colspan="2">
-    <widget class="QLabel" name="lastRevisionLbl">
+   <item row="8" column="3">
+    <widget class="QPushButton" name="sd_dnld">
      <property name="text">
-      <string notr="true">-</string>
+      <string>Download SD contents</string>
      </property>
     </widget>
    </item>
@@ -119,6 +90,26 @@
     <widget class="QLabel" name="label">
      <property name="text">
       <string>Latest Download</string>
+     </property>
+    </widget>
+   </item>
+   <item row="24" column="0" colspan="4">
+    <widget class="Line" name="line_6">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="3">
+    <widget class="QPushButton" name="checkFWUpdates">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="text">
+      <string>Check for updates</string>
      </property>
     </widget>
    </item>
@@ -135,7 +126,7 @@
      </property>
     </widget>
    </item>
-   <item row="6" column="2">
+   <item row="8" column="2">
     <spacer name="horizontalSpacer_2">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
@@ -147,6 +138,54 @@
       </size>
      </property>
     </spacer>
+   </item>
+   <item row="7" column="3">
+    <widget class="QPushButton" name="checkSDUpdates">
+     <property name="text">
+      <string>Check for SD updates</string>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="0">
+    <widget class="QLabel" name="label_2">
+     <property name="text">
+      <string>Latest Download</string>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="1" colspan="2">
+    <widget class="QLabel" name="lastSDVersionLbl">
+     <property name="text">
+      <string>-</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="0">
+    <widget class="QLabel" name="label_3">
+     <property name="font">
+      <font>
+       <family>Sans Serif</family>
+       <weight>75</weight>
+       <bold>true</bold>
+      </font>
+     </property>
+     <property name="text">
+      <string>SD Card</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1" colspan="3">
+    <widget class="QLabel" name="sdTypeLbl">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>SDType</string>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>

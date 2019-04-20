@@ -51,14 +51,17 @@ class MainWindow : public QMainWindow
     void firmwareDownloadCompleted();
     void firmwareChanged();
     void startSync();
+    void sdcardDownloadCompleted();
 
   protected:
     QString getCompanionUpdateBaseUrl() const;
     QString seekCodeString(const QByteArray & qba, const QString & label) const;
 
   protected slots:
-    void dowloadLastFirmwareUpdate();
+    void downloadLastFirmwareUpdate();
     void startFirmwareDownload();
+    void downloadLastSDCardUpdate();
+    void updateDownloadedSDCard();
     virtual void closeEvent(QCloseEvent *event);
     virtual void changeEvent(QEvent *e);
     virtual void dragEnterEvent(QDragEnterEvent *event);
@@ -170,6 +173,8 @@ class MainWindow : public QMainWindow
     downloadDialog * downloadDialog_forWait;
     unsigned int checkForUpdatesState;
     QString firmwareVersionString;
+    bool unzip(const QString & zipFile, const QString & path);
+    bool copyRecursively(const QString & srcFilePath, const QString & destFilePath);
 
     QNetworkAccessManager *networkManager;
 

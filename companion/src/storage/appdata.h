@@ -376,7 +376,12 @@ class Profile: public CompStoreObj
     PROPERTYSTR2(splashFile, "SplashFileName")
     PROPERTYSTR(fwName)
     PROPERTYSTR(fwType)
+
     PROPERTYSTR(sdPath)
+    PROPERTYSTR(sdZipSrcFile)
+    PROPERTYSTR(sdZipDestFile)
+    PROPERTYSTR(sdVersion)
+
     PROPERTYSTR(pBackupDir)
 
     PROPERTY4(int, channelOrder, "default_channel_order",  0)
@@ -551,6 +556,7 @@ class AppData: public CompStoreObj
     PROPERTYSTR2(libDir,          "libraryPath")
     PROPERTYSTR2(snapshotDir,     "snapshotpath")
     PROPERTYSTR2(updatesDir,      "lastUpdatesDir")
+    PROPERTYSTR (lastSDDir)
 
     PROPERTYSTR (locale)
     PROPERTYSTR (gePath)
@@ -576,6 +582,7 @@ class AppData: public CompStoreObj
     PROPERTY4(bool, autoCheckApp,    "startup_check_companion", true)
     PROPERTY4(bool, autoCheckFw,     "startup_check_fw",        true)
 
+    PROPERTY(bool, startup_check_sdcard,       true)
     PROPERTY(bool, enableBackup,               false)
     PROPERTY(bool, backupOnFlash,              true)
     PROPERTY(bool, outputDisplayDetails,       false)

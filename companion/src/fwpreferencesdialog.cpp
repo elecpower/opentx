@@ -49,6 +49,13 @@ void FirmwarePreferencesDialog::initSettings()
     ui->lastRevisionLbl->setText(index2version(version));
   else
     ui->lastRevisionLbl->setText(tr("Unknown"));
+
+  ui->sdTypeLbl->setText(g.profile[g.id()].sdZipSrcFile());
+  QString sdVer = g.profile[g.id()].sdVersion();
+  if (sdVer.isEmpty())
+    ui->lastSDVersionLbl->setText(tr("Unknown"));
+  else
+    ui->lastSDVersionLbl->setText(sdVer);
 }
 
 void FirmwarePreferencesDialog::on_checkFWUpdates_clicked()
@@ -62,17 +69,12 @@ void FirmwarePreferencesDialog::on_fw_dnld_clicked()
 {
   MainWindow * mw = qobject_cast<MainWindow *>(this->parent());
   if (mw)
-    mw->dowloadLastFirmwareUpdate();
+    mw->downloadLastFirmwareUpdate();
 }
 
 void FirmwarePreferencesDialog::on_sd_dnld_clicked()
 {
-  QString url = g.openTxCurrentDownloadBranchUrl() % QStringLiteral("sdcard/");
-  QString fwType = g.profile[g.id()].fwType();
-  QStringList list = fwType.split("-");
-  QString firmware = QString("%1-%2").arg(list[0]).arg(list[1]);
-  if (g.boundedOpenTxBranch() != AppData::BRANCH_NIGHTLY_UNSTABLE) {
-    url.append(QString("%1/").arg(firmware));
-  }
-  QDesktopServices::openUrl(url);
+  MainWindow * mw = qobject_cast<MainWindow *>(this->parent());
+  if (mw)
+    mw->downloadLastSDCardUpdate();
 }

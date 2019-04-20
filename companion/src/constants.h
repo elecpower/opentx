@@ -80,4 +80,6 @@
 #define CPN_STR_SW_INDICATOR_NEUT      QCoreApplication::translate("RawSwitch", "-")             // Switch neutral (middle) position indicator.
 #define CPN_STR_SW_INDICATOR_REV       QCoreApplication::translate("RawSwitch", "!")             // Switch reversed logic (NOT) indicator.
 
+#define CPN_SDCARD_VERS_FILE           QStringLiteral("opentx.sdcard.version")
+
 #endif // _CONSTANTS_H_

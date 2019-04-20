@@ -58,6 +58,11 @@ class FirmwareInterface
     QImage::Format getSplashFormat();
     unsigned int save(const QString & fileName);
     bool isValid();
+    int getSDCardFwVerMajor() { return sdCardFwVerMajor; }
+    int getSDCardFwVerMinor() { return sdCardFwVerMinor; }
+    int getSDCardVersion() { return sdCardVersion; }
+    QString getSDCardVerString() { return sdCardVerString; }
+    void splitSDCardVersion(const QString src, int & fwMajor, int & fwMinor, int & sdVersion);
 
   private:
     QByteArray flash;
@@ -83,6 +88,10 @@ class FirmwareInterface
     uint splashHeight;
     QImage::Format splash_format;
     bool isValidFlag;
+    QString sdCardVerString;
+    int sdCardFwVerMajor;
+    int sdCardFwVerMinor;
+    int sdCardVersion;
 };
 
 #endif // _FIRMWAREINTERFACE_H_

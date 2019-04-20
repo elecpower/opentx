@@ -31,6 +31,7 @@
 #define DATE_MARK   "DATE"
 #define TIME_MARK   "TIME"
 #define EEPR_MARK   "EEPR"
+#define SDVER_MARK  "req SD ver"
 #define FSIZE_MAX   Boards::getFlashSize(Board::BOARD_UNKNOWN)
 
 FirmwareInterface::FirmwareInterface(const QString & filename):
@@ -43,7 +44,10 @@ FirmwareInterface::FirmwareInterface(const QString & filename):
   splashSize(0),
   splashWidth(0),
   splashHeight(0),
-  isValidFlag(false)
+  isValidFlag(false),
+  sdCardFwVerMajor(0),
+  sdCardFwVerMinor(0),
+  sdCardVersion(0)
 {
   if (!filename.isEmpty()) {
     QFile file(filename);
@@ -83,6 +87,9 @@ FirmwareInterface::FirmwareInterface(const QString & filename):
     versionId = version2index(version);
     seekSplash();
     isValidFlag = !version.isEmpty();
+
+    sdCardVerString = seekLabel(SDVER_MARK);
+    splitSDCardVersion(sdCardVerString, sdCardFwVerMajor, sdCardFwVerMinor, sdCardVersion);
   }
 }
 
@@ -367,4 +374,22 @@ unsigned int FirmwareInterface::save(const QString & filename)
 
   free(binflash);
   return flashSize;
+}
+
+void FirmwareInterface::splitSDCardVersion(const QString src, int & fwMajor, int & fwMinor, int & sdVersion)
+{
+  //  expected format x.xVnnnn or blank if sd card not supported
+  //  this pattern matches the contents of the distributed sd card version file contents
+  if (src.contains("V")) {
+    QStringList l1 = src.split("V");
+    sdCardVersion = l1[1].toInt();
+    if (l1[0].contains(".")) {
+      QStringList l2 = l1[0].split(".");
+      sdCardFwVerMajor = l2[0].toInt();
+      sdCardFwVerMinor = l2[1].toInt();
+    }
+  }
+  sdCardFwVerMajor = 0;
+  sdCardFwVerMinor = 0;
+  sdCardVersion = 0;
 }
