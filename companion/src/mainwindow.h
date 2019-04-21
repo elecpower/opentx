@@ -60,8 +60,8 @@ class MainWindow : public QMainWindow
   protected slots:
     void downloadLastFirmwareUpdate();
     void startFirmwareDownload();
-    void downloadLastSDCardUpdate();
-    void updateDownloadedSDCard();
+    void downloadLastSDImageUpdate();
+    void updateDownloadedSDImage();
     virtual void closeEvent(QCloseEvent *event);
     virtual void changeEvent(QEvent *e);
     virtual void dragEnterEvent(QDragEnterEvent *event);
@@ -173,8 +173,6 @@ class MainWindow : public QMainWindow
     downloadDialog * downloadDialog_forWait;
     unsigned int checkForUpdatesState;
     QString firmwareVersionString;
-    bool unzip(const QString & zipFile, const QString & path);
-    bool copyRecursively(const QString & srcFilePath, const QString & destFilePath);
 
     QNetworkAccessManager *networkManager;
 

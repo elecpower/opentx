@@ -65,6 +65,7 @@
 #define EEPROM_FILES_FILTER            CPN_STR_RAD_MOD_SETTINGS % " " % CPN_STR_FILES % " (*.otx *.eepe *.bin *.hex);;" % OTX_FILES_FILTER % EEPE_FILES_FILTER % BIN_FILES_FILTER % HEX_FILES_FILTER
 #define FLASH_FILES_FILTER             "FLASH " % CPN_STR_FILES % " (*.bin *.hex *.dfu);;" % BIN_FILES_FILTER % HEX_FILES_FILTER % DFU_FILES_FILTER
 #define EXTERNAL_EEPROM_FILES_FILTER   "EEPROM " % CPN_STR_FILES % " (*.bin *.hex);;" % BIN_FILES_FILTER % HEX_FILES_FILTER
+#define ZIP_FILES_FILTER               "Zip " % CPN_STR_FILES % " (*.zip);;"
 #define ER9X_EEPROM_FILE_TYPE          "ER9X_EEPROM_FILE"
 #define EEPE_EEPROM_FILE_HEADER        "EEPE EEPROM FILE"
 #define EEPE_MODEL_FILE_HEADER         "EEPE MODEL FILE"
@@ -79,7 +80,5 @@
 #define CPN_STR_SW_INDICATOR_DN        QCoreApplication::translate("RawSwitch", "\xE2\x86\x93")  // Switch down position indicator: Down arrow, or similar.
 #define CPN_STR_SW_INDICATOR_NEUT      QCoreApplication::translate("RawSwitch", "-")             // Switch neutral (middle) position indicator.
 #define CPN_STR_SW_INDICATOR_REV       QCoreApplication::translate("RawSwitch", "!")             // Switch reversed logic (NOT) indicator.
-
-#define CPN_SDCARD_VERS_FILE           QStringLiteral("opentx.sdcard.version")
 
 #endif // _CONSTANTS_H_

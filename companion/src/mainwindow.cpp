@@ -47,10 +47,8 @@
 #include "progresswidget.h"
 #include "storage.h"
 #include "translations.h"
-
-#define MINIZ_HEADER_FILE_ONLY
-#include "miniz.c"
-#undef MINIZ_HEADER_FILE_ONLY
+#include "sdcardinterface.h"
+#include "process_sd_dwnld.h"
 
 #include "dialogs/filesyncdialog.h"
 
@@ -68,7 +66,7 @@
 // update check flags
 #define CHECK_COMPANION        1
 #define CHECK_FIRMWARE         2
-#define CHECK_SDCARD           4
+#define CHECK_SDIMAGE          4
 #define INTERACTIVE_DOWNLOAD   8
 #define AUTOMATIC_DOWNLOAD     16
 
@@ -91,8 +89,6 @@
   #define COMPANION_FILEMASK              QStringLiteral("*.*")
   #define COMPANION_INSTALL_QUESTION      QT_TRANSLATE_NOOP("MainWindow", "Would you like to launch the installer?")
 #endif
-
-#define COMPANION_REQ_SDCARD_VERSION      QStringLiteral(SDCARD_VERSION)
 
 MainWindow::MainWindow():
   downloadDialog_forWait(nullptr),
@@ -232,13 +228,13 @@ void MainWindow::doAutoUpdates()
   if (g.autoCheckFw())
     checkForUpdatesState |= CHECK_FIRMWARE;
   if (g.startup_check_sdcard())
-    checkForUpdatesState |= CHECK_SDCARD;
+    checkForUpdatesState |= CHECK_SDIMAGE;
   checkForUpdates();
 }
 
 void MainWindow::doUpdates()
 {
-  checkForUpdatesState = CHECK_COMPANION | CHECK_FIRMWARE | CHECK_SDCARD | INTERACTIVE_DOWNLOAD;
+  checkForUpdatesState = CHECK_COMPANION | CHECK_FIRMWARE | CHECK_SDIMAGE | INTERACTIVE_DOWNLOAD;
   checkForUpdates();
 }
 
@@ -295,16 +291,16 @@ void MainWindow::checkForUpdates()
       qDebug() << "Checking for firmware update " << url.url();
     }
   }
-  else if (checkForUpdatesState & CHECK_SDCARD) {
-    checkForUpdatesState -= CHECK_SDCARD;
+  else if (checkForUpdatesState & CHECK_SDIMAGE) {
+    checkForUpdatesState -= CHECK_SDIMAGE;
     /*
     const QString stamp = getCurrentFirmware()->getStampUrl();
     if (!stamp.isEmpty()) {
       if (checkForUpdatesState & INTERACTIVE_DOWNLOAD)
         openUpdatesWaitDialog();
       url.setUrl(stamp);
-      connect(networkManager, &QNetworkAccessManager::finished, this, &MainWindow::checkForSDCardUpdateFinished);
-      qDebug() << "Checking for SD card update " << url.url();
+      connect(networkManager, &QNetworkAccessManager::finished, this, &MainWindow::checkForSDImageUpdateFinished);
+      qDebug() << "Checking for SD image update " << url.url();
     }
     */
   }
@@ -1777,248 +1773,46 @@ void MainWindow::autoClose()
   this->close();
 }
 
-void MainWindow::downloadLastSDCardUpdate()
+void MainWindow::downloadLastSDImageUpdate()
 {
-  //  testing
+  //  skip download when testing ======================================================
   updateDownloadedSDCard();
   return;
-  //
-
-  QString filepath = g.profile[g.id()].sdPath();
-  if (filepath.isNull() | filepath.isEmpty()) {
-    QMessageBox::critical(this, CPN_STR_APP_NAME, tr("No SD Card folder set in this profile. Update settings and retry."), QMessageBox::Ok);
-    return;
-  }
-
-  QString lastSDCardVerString;
-  int lastSDCardMajor;
-  int lastSDCardMinor;
-  int lastSDCardVersion;
-
-  filepath.append("/" + CPN_SDCARD_VERS_FILE);
-  QFile file(filepath);
-  if (file.exists()) {
-    if (!file.open(QFile::ReadOnly | QFile::Text)) {
-      QMessageBox::critical(this, CPN_STR_APP_NAME, tr("Cannot open profile SD card version file"), QMessageBox::Ok);
-      return;
-    }
-    else {
-      QTextStream in(&file);
-      if (in.status()==QTextStream::Ok) {
-        lastSDCardVerString = in.readLine();
-        if (!(in.status()==QTextStream::Ok)) {
-          QMessageBox::critical(this, CPN_STR_APP_NAME, tr("Cannot read profile SD card version file"), QMessageBox::Ok);
-          lastSDCardVerString = "";
-          return;
-        }
-        else {
-          qDebug() << "SD card version found: " << lastSDCardVerString;
-        }
+  //  ==============================================================
+  SDCardInterface sdci;
+  if (sdci.isImageCurrent()) {
+    int ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("The SD card image appears to be current. Download again?"), QMessageBox::Yes | QMessageBox::No);
+    if (ret == QMessageBox::No) {
+      ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("Reinstall previous downloaded image?"), QMessageBox::Yes | QMessageBox::No);
+      if (ret == QMessageBox::Yes) {
+        updateDownloadedSDCard();
+        return;
       }
-    }
-    file.close();
-  }
-  else {
-    qDebug() << "SD card version file not found";
-  }
-
-  int fwSDCardVersion = 0;
-  filepath = g.profile[g.id()].fwName();
-  FirmwareInterface fw(filepath);
-  if (!filepath.isNull()) {
-    QFile fwfile(filepath);
-    if (fwfile.exists()) {
-      fwSDCardVersion = fw.getSDCardVersion();
-      if (!fwSDCardVersion) {
-        QMessageBox::warning(this, CPN_STR_APP_NAME, tr("Firmware not reporting it supports an SD card!"), QMessageBox::Ok);
+      else {
         return;
       }
     }
   }
-  if (!fwSDCardVersion) {
-    int reqSDCardMajor;
-    int reqSDCARDMinor;
-    fw.splitSDCardVersion(COMPANION_REQ_SDCARD_VERSION, reqSDCardMajor, reqSDCARDMinor, fwSDCardVersion);
-    qDebug() << "Firmware has not been download. Trying Companion SD card version: " << COMPANION_REQ_SDCARD_VERSION;
-  }
-
-  //  once the sd card is downloaded and installed it is not easy to determine the radio it is for and not all contents are the same eg lua scripts
-  //  so should the user change the radio type in the profile after an sd card is downloaded there could be a mismatch
-  //  make a suggestion to Devs to include radio in version  or another file and store with FW in appdata
-  fw.splitSDCardVersion(lastSDCardVerString, lastSDCardMajor, lastSDCardMinor, lastSDCardVersion);
-  if (!(fwSDCardVersion > lastSDCardVersion)) {
-    int ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("The SD card appears to be up to date. Would you like to refresh the contents?"), QMessageBox::Yes | QMessageBox::No);
-    if (ret == QMessageBox::No) {
-      return;
-    }
-  }
-
-  QString url = g.openTxCurrentDownloadBranchUrl() % QStringLiteral("sdcard/");
-  QString fwType = g.profile[g.id()].fwType();
-  QStringList list = fwType.split("-");
-  QString firmware = QString("%1-%2").arg(list[0]).arg(list[1]);
-  if (g.boundedOpenTxBranch() != AppData::BRANCH_NIGHTLY_UNSTABLE) {
-    url.append(QString("%1/").arg(firmware));
-  }
-  // QDesktopServices::openUrl(url);
-
-  //  hard code until find a way to determine from fw or app setting
-  //  or return list of files and allow user to select or
-  //  use the version to find a match as the url points to the folder before we try and add the zip file name
-  //  use the version check code model
-  QString fwFamily = "taranis-x9";
-  // eg sdcard-taranis-x9-2.2V0018.zip
-  QString sdZipSrcFile = QString("sdcard-%1-%2.zip").arg(fwFamily).arg(lastSDCardVerString);
-  url.append(sdZipSrcFile);
-
-  // uncomment for testing
-  url.replace("2.3","2.2");
-
-  QString sdZipDestFile = QFileDialog::getSaveFileName(this, tr("Save As"), g.lastSDDir() % "/" % sdZipSrcFile, tr("Zip files (*.zip)"));
-  if (!sdZipDestFile.isEmpty()) {
-    qDebug() << "Downloading SD card " << url << " to " << sdZipDestFile;
-    g.profile[g.id()].sdVersion(lastSDCardVerString);
-    g.profile[g.id()].sdZipSrcFile(QFileInfo(sdZipSrcFile).fileName());
-    g.profile[g.id()].sdZipDestFile(QFileInfo(sdZipDestFile).fileName());
-    g.lastSDDir(QFileInfo(sdZipDestFile).dir().absolutePath());
-    downloadDialog * dd = new downloadDialog(this, url, sdZipDestFile);
-    connect(dd, SIGNAL(accepted()), this, SLOT(updateDownloadedSDCard()));
+  QString url = sdci.downloadUrl();
+  QString dest = QFileDialog::getSaveFileName(this, tr("Save As"), sdci.defaultDestPath(), ZIP_FILES_FILTER);
+  if (!dest.isEmpty()) {
+    qDebug() << "Downloading SD image " << url << " to " << dest;
+    sdci.downloadDest(dest);
+    downloadDialog * dd = new downloadDialog(this, url, dest);
+    connect(dd, SIGNAL(accepted()), this, SLOT(updateDownloadedSDImage()));
     dd->exec();
   }
 }
 
-void MainWindow::updateDownloadedSDCard()
+void MainWindow::updateDownloadedSDImage()
 {
-  int ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("Would you like to install the updated SD card?"), QMessageBox::Yes | QMessageBox::No);
+  int ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("Install SD card image?"), QMessageBox::Yes | QMessageBox::No);
   if (ret == QMessageBox::No)
     return;
 
-  QString zipfile = g.lastSDDir() + "/" + g.profile[g.id()].sdZipDestFile();
-  QString unzipPath = zipfile;
-  unzipPath.replace(".zip", "");
-  if (!unzip(zipfile, unzipPath)) {
-    QMessageBox::critical(this, CPN_STR_APP_NAME, tr("Error: Failed to unzip the downloaded SD card!"), QMessageBox::Ok);
-    //  delete the temp folder
-    if (!QDir(unzipPath).removeRecursively()) {
-      QMessageBox::critical(this, CPN_STR_APP_NAME, tr("Error: Failed to completely tidy up!"), QMessageBox::Ok);
-    }
-    return;
-  }
-
-  QString sdpath = g.profile[g.id()].sdPath();
-  if (QDir(sdpath).exists()) {
-    QString bksdpath = sdpath % ".bak";
-    if (QDir(bksdpath).exists()) {
-      if (!QDir(bksdpath).removeRecursively()) {
-        QMessageBox::critical(this, CPN_STR_APP_NAME, tr("Error: Failed to delete previous SD folder backup!"), QMessageBox::Ok);
-        return;
-      }
-    }
-    if (!QDir().rename(sdpath, bksdpath)) {
-      QMessageBox::critical(this, CPN_STR_APP_NAME, tr("Error: Unable to backup SD folder!"), QMessageBox::Ok);
-      return;
-    }
-  }
-
-  if (!copyRecursively(unzipPath, sdpath)) {
-    QMessageBox::critical(this, CPN_STR_APP_NAME, tr("Error: Unable to replace SD folder with downloaded version!"), QMessageBox::Ok);
-  }
-  else if (!QDir(unzipPath).removeRecursively()) {
-    QMessageBox::critical(this, CPN_STR_APP_NAME, tr("Error: Failed to delete temporary unzipped SD card folder!"), QMessageBox::Ok);
-  }
-  else {
-    QMessageBox::information(this, CPN_STR_APP_NAME, tr("Downloaded SD card successfully installed"), QMessageBox::Ok);
-  }
+  ProgressDialog progressDialog(this, tr("Install SD card image"), CompanionIcon("save.png"));
+  bool result = installSDImage(progressDialog.progress());
+  if (!result && !progressDialog.isEmpty())
+    progressDialog.exec();
 }
 
-bool MainWindow::unzip(const QString & file, const QString & path)
-{
-  qDebug() << "File:" << file << " Path:" << path;
-  mz_zip_archive zip_archive;
-  memset(&zip_archive, 0, sizeof(zip_archive));
-
-  bool status = mz_zip_reader_init_file(&zip_archive, qPrintable(file), 0);
-  if (!status) {
-    qDebug() << "Status: " << status;
-    return false;
-  }
-
-  int fileCount = (int)mz_zip_reader_get_num_files(&zip_archive);
-  if (fileCount == 0) {
-    mz_zip_reader_end(&zip_archive);
-    qDebug() << "File count zero";
-    return false;
-  }
-  qDebug() << "File count:" << fileCount;
-
-  mz_zip_archive_file_stat file_stat;
-  if (!mz_zip_reader_file_stat(&zip_archive, 0, &file_stat)) {
-    mz_zip_reader_end(&zip_archive);
-    qDebug() << "File status error";
-    return false;
-  }
-
-  QString lastDir = "";
-
-  for (int i = 0; i < fileCount; i++) {
-    if (!mz_zip_reader_file_stat(&zip_archive, i, &file_stat)) {
-      continue;
-    }
-    if (mz_zip_reader_is_file_a_directory(&zip_archive, i)) {
-      // mirror full directory structure
-      //qDebug() << "Archive directory:" << file_stat.m_filename;
-      QString newDir = path + "/";
-      newDir.append(file_stat.m_filename);
-      if (!QDir().mkpath(newDir)) {
-        qDebug() << "Failed to create directory:" << newDir;
-        return false;
-      }
-      qDebug() << "Created directory:" << newDir;
-    }
-    else {
-      //qDebug() << "Extracting file:" << file_stat.m_filename;
-      QString destFile = path + "/";
-      destFile.append(file_stat.m_filename);
-      QFileInfo rfp(destFile);
-      QDir newDir = rfp.absolutePath();
-      if (!newDir.exists()) {
-        if(!QDir().mkpath(newDir.path())) {
-          qDebug() << "Failed to create directory:" << newDir.path();
-          return false;
-        }
-        qDebug() << "Created directory:" << newDir.path();
-        lastDir = newDir.path();
-      }
-      mz_zip_reader_extract_to_file(&zip_archive, i, qPrintable(destFile), 0);
-      qDebug() << "Extracted file:" << file_stat.m_filename;
-    }
-  }
-  // Close the archive, freeing any resources it was using
-  mz_zip_reader_end(&zip_archive);
-  return true;
-}
-
-bool MainWindow::copyRecursively(const QString & srcFilePath, const QString & destFilePath)
-{
-  QFileInfo srcFileInfo(srcFilePath);
-  if (srcFileInfo.isDir()) {
-    QDir targetDir(destFilePath);
-    targetDir.cdUp();
-    if (!targetDir.mkdir(QFileInfo(destFilePath).fileName()))
-      return false;
-    QDir sourceDir(srcFilePath);
-    QStringList fileNames = sourceDir.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System);
-    foreach (const QString &fileName, fileNames) {
-      const QString newSrcFilePath = srcFilePath + QLatin1Char('/') + fileName;
-      const QString newTgtFilePath = destFilePath + QLatin1Char('/') + fileName;
-      if (!copyRecursively(newSrcFilePath, newTgtFilePath))
-        return false;
-    }
-  }
-  else
-  {
-    if (!QFile::copy(srcFilePath, destFilePath))
-      return false;
-  }
-  return true;
-}

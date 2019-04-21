@@ -76,5 +76,5 @@ void FirmwarePreferencesDialog::on_sd_dnld_clicked()
 {
   MainWindow * mw = qobject_cast<MainWindow *>(this->parent());
   if (mw)
-    mw->downloadLastSDCardUpdate();
+    mw->downloadLastSDImageUpdate();
 }
