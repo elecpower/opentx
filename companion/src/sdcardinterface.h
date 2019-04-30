@@ -26,10 +26,31 @@
 #include <QObject>
 #include <QString>
 
-#define CPN_SDCARD_VERS_FILE        QStringLiteral("opentx.sdcard.version")
-#define CPN_REQ_SDCARD_VERSION      QStringLiteral(SDCARD_VERSION)
+#define CPN_SDCARD_VERS_FILE           QStringLiteral("opentx.sdcard.version")
+#define CPN_SDCARD_REQ_VERSION         QStringLiteral(SDCARD_VERSION)
 
+//  these must be kept in sync with radio/src/sdcard.h
+#define CPN_SDCARD_ROOT           "g.profile[g.id()].sdPath()"
+#define CPN_CROSSFIRE_PATH        QStringLiteral("CROSSFIRE")
+#define CPN_EEPROMS_PATH          QStringLiteral("EEPROM")
+#define CPN_FIRMWARES_PATH        QStringLiteral("FIRMWARE")
+#define CPN_BITMAPS_PATH          QStringLiteral("IMAGES")
+#define CPN_LAYOUTS_PATH          QStringLiteral("LAYOUTS")   //  is this still used?
+#define CPN_LOGS_PATH             QStringLiteral("LOGS")
+#define CPN_MODELS_PATH           QStringLiteral("MODELS")
+#define CPN_SCREENSHOTS_PATH      QStringLiteral("SCREENSHOTS"))
+#define CPN_SCRIPTS_PATH          QStringLiteral("SCRIPTS")
+#define CPN_SOUNDS_PATH           QStringLiteral("SOUNDS")
+#define CPN_SXR_PATH              QStringLiteral("SxR")
+#define CPN_THEMES_PATH           QStringLiteral("THEMES")
+#define CPN_WIDGETS_PATH          QStringLiteral("WIDGETS")
 
+#define CPN_SOUNDS_LANG_PATH      CPN_SOUNDS_PATH "/{lang}"           //  default
+#define CPN_SOUNDS_SYSTEM_PATH    CPN_SOUNDS_LANG_PATH "/SYSTEM"  // might be best to have a function to return since variable see appdata radio setting
+#define CPN_SCRIPTS_FUNCS_PATH    CPN_SCRIPTS_PATH "/FUNCTIONS"
+#define CPN_SCRIPTS_MIXES_PATH    CPN_SCRIPTS_PATH "/MIXES"
+#define CPN_SCRIPTS_TELEM_PATH    CPN_SCRIPTS_PATH "/TELEMETRY"
+#define CPN_SCRIPTS_WIZARD_PATH   CPN_SCRIPTS_PATH "/WIZARD"
 
 //  TODO  Full SD card structure here (see radio) and change all localised references throughout Companion
 //  TODO  Should really be shared between radio and Companion like may other pieces eg common/src
@@ -40,12 +61,47 @@ class SDCardInterface : public QObject
     Q_OBJECT
 
   public:
-    SDCardInterface();
+    enum SDImageRoots {
+      SD_IMAGE_ROOT_STD,
+      SD_IMAGE_ROOT_CUSTOM
+    };
+
+    enum SDFolders {
+      SD_FOLDER_ROOT = 0,
+      SD_FOLDER_CROSSFIRE,
+      SD_FOLDER_EEPROM,
+      SD_FOLDER_FIRMWARE,
+      SD_FOLDER_IMAGES,
+      SD_FOLDER_LAYOUTS,
+      SD_FOLDER_LOGS,
+      SD_FOLDER_MODELS,
+      SD_FOLDER_SCREENSHOTS,
+      SD_FOLDER_SCRIPTS,
+      SD_FOLDER_SCRIPTS_FUNCTIONS,
+      SD_FOLDER_SCRIPTS_MIXES,
+      SD_FOLDER_SCRIPTS_TELEMETRY,
+      SD_FOLDER_SCRIPTS_WIZARD,
+      SD_FOLDER_SOUNDS,
+      SD_FOLDER_SOUNDS_LANGUAGE,
+      SD_FOLDER_SOUNDS_LANGUAGE_SYSTEM,
+      SD_FOLDER_SXR,
+      SD_FOLDER_THEMES,
+      SD_FOLDER_WIDGETS,
+      SD_FOLDER_COUNT
+    };
+
     QString currentVersion();
-    bool isImageCurrent();
-    QString downloadUrl();
-    QString zipSourceFile();
-    void downloadDest(const QString destPath);
+    bool isStructureCurrent();
+    bool hasRootPath(SDImageRoots root);
+    QString rootPath(SDImageRoots root);
+    QString folderPath(SDFolders folder, SDImageRoots root);
+    QString downloadZipUrl();
+    QString sourceZipFile();
+    QString destZipPath();
+    void setLastZipDownload(const QString destPath);
+    bool createCustomFolders();
+    bool createFolderStructure(SDImageRoots root);
+    bool mergeCustomFolder();
 
   protected:
 

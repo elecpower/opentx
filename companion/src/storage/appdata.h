@@ -63,6 +63,7 @@
 #define CPN_URL_DOWNLOAD_CUR_REL   CPN_URL_DOWNLOAD_CUR_VERS "release/"
 #define CPN_URL_DOWNLOAD_CUR_RC    CPN_URL_DOWNLOAD_CUR_VERS "rc/"
 #define CPN_URL_DOWNLOAD_CUR_UNST  CPN_URL_DOWNLOAD_CUR_VERS "nightlies/"
+#define CPN_URL_DOWNLOAD_SD_FLDR   "sdcard/"
 
 #define MAX_PROFILES 15
 #define MAX_JOYSTICKS 8
@@ -378,9 +379,11 @@ class Profile: public CompStoreObj
     PROPERTYSTR(fwType)
 
     PROPERTYSTR(sdPath)
-    PROPERTYSTR(sdZipSrcFile)
-    PROPERTYSTR(sdZipDestFile)
-    PROPERTYSTR(sdVersion)
+    PROPERTYSTR(sdPathCustom)
+    PROPERTYSTR(sdLastZipVersion)
+    PROPERTYSTR(sdLastZipSrcFile)
+    PROPERTYSTR(sdLastZipDestFile)
+    PROPERTYSTR(sdLastZipFolder)
 
     PROPERTYSTR(pBackupDir)
 
@@ -515,6 +518,8 @@ class AppData: public CompStoreObj
       return urlList.value(type, CPN_URL_DOWNLOAD_CUR_VERS);
     }
 
+    inline QString openTxCurrentDownloadBranchSDCardUrl() const { return openTxCurrentDownloadBranchUrl() % CPN_URL_DOWNLOAD_SD_FLDR); }
+
     Profile    profile[MAX_PROFILES];
     JStickData joystick[MAX_JOYSTICKS];
     FwRevision fwRev;
@@ -556,7 +561,6 @@ class AppData: public CompStoreObj
     PROPERTYSTR2(libDir,          "libraryPath")
     PROPERTYSTR2(snapshotDir,     "snapshotpath")
     PROPERTYSTR2(updatesDir,      "lastUpdatesDir")
-    PROPERTYSTR (lastSDDir)
 
     PROPERTYSTR (locale)
     PROPERTYSTR (gePath)

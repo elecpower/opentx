@@ -1776,16 +1776,16 @@ void MainWindow::autoClose()
 void MainWindow::downloadLastSDImageUpdate()
 {
   //  skip download when testing ======================================================
-  updateDownloadedSDCard();
+  updateDownloadedSDImage();
   return;
   //  ==============================================================
-  SDCardInterface sdci;
-  if (sdci.isImageCurrent()) {
-    int ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("The SD card image appears to be current. Download again?"), QMessageBox::Yes | QMessageBox::No);
+  SDCardInterface sd;
+  if (sd.isStructureCurrent()) {
+    int ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("SD card structure appears to be current. Download latest image?"), QMessageBox::Yes | QMessageBox::No);
     if (ret == QMessageBox::No) {
-      ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("Reinstall previous downloaded image?"), QMessageBox::Yes | QMessageBox::No);
+      ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("Reinstall previously downloaded image?"), QMessageBox::Yes | QMessageBox::No);
       if (ret == QMessageBox::Yes) {
-        updateDownloadedSDCard();
+        updateDownloadedSDImage();
         return;
       }
       else {
@@ -1793,11 +1793,14 @@ void MainWindow::downloadLastSDImageUpdate()
       }
     }
   }
-  QString url = sdci.downloadUrl();
-  QString dest = QFileDialog::getSaveFileName(this, tr("Save As"), sdci.defaultDestPath(), ZIP_FILES_FILTER);
+  QString url = sd.downloadZipUrl();
+
+  // QDesktopServices::openUrl(url);
+
+  QString dest = QFileDialog::getSaveFileName(this, tr("Save As"), sd.defaultDestPath(), ZIP_FILES_FILTER);
   if (!dest.isEmpty()) {
     qDebug() << "Downloading SD image " << url << " to " << dest;
-    sdci.downloadDest(dest);
+    sd.setLastZipDownload(dest);
     downloadDialog * dd = new downloadDialog(this, url, dest);
     connect(dd, SIGNAL(accepted()), this, SLOT(updateDownloadedSDImage()));
     dd->exec();
@@ -1811,7 +1814,7 @@ void MainWindow::updateDownloadedSDImage()
     return;
 
   ProgressDialog progressDialog(this, tr("Install SD card image"), CompanionIcon("save.png"));
-  bool result = installSDImage(progressDialog.progress());
+  bool result = ProcessSDDownload::installSDImage(progressDialog.progress());
   if (!result && !progressDialog.isEmpty())
     progressDialog.exec();
 }

@@ -27,12 +27,12 @@
 
 class ProgressWidget;
 
-class ProcessSDDwnld : public QObject
+class ProcessSDDownload : public QObject
 {
   Q_OBJECT
 
 public:
-  ProcessSDDwnld(const QString &source, const QString &destination, ProgressWidget *progress);
+  ProcessSDDownload(const QString &source, const QString &destination, ProgressWidget *progress);
   bool run();
 
 signals:

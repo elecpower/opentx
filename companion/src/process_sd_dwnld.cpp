@@ -30,7 +30,7 @@
 #include "miniz.c"
 #undef MINIZ_HEADER_FILE_ONLY
 
-ProcessSDDwnld::ProcessSDDwnld(const QString &source, const QString &destination, ProgressWidget *progress):
+ProcessSDDownload::ProcessSDDownload(const QString &source, const QString &destination, ProgressWidget *progress):
 progress(progress),
 source(source),
 destination(destination),
@@ -38,7 +38,7 @@ result(true)
 {
 }
 
-bool ProcessSDDwnld::run()
+bool ProcessSDDownload::run()
 {
   progress->lock(true);
   // progress->setInfo(tr("Copying file..."));
@@ -51,7 +51,7 @@ bool ProcessSDDwnld::run()
   return result;
 }
 
-void ProcessSDDwnld::onTimer()
+void ProcessSDDownload::onTimer()
 {
   char buf[BLKSIZE];
 
@@ -93,7 +93,7 @@ void ProcessSDDwnld::onTimer()
   emit finished();
 }
 
-bool ProcessSDDwnld::installSDImage(ProgressWidget * progress)
+bool ProcessSDDownload::installSDImage(ProgressWidget * progress)
 {
   QString zipfile = g.lastSDDir() + "/" + g.profile[g.id()].sdZipDestFile();
   QString unzipPath = zipfile;
@@ -133,10 +133,13 @@ bool ProcessSDDwnld::installSDImage(ProgressWidget * progress)
   else {
     QMessageBox::information(this, CPN_STR_APP_NAME, tr("Downloaded SD card successfully installed"), QMessageBox::Ok);
   }
+
+  //  TODO  Prompt to merge custom folder if one defined
+
   return true;
 }
 
-bool ProcessSDDwnld::unzip(const QString & file, const QString & path)
+bool ProcessSDDownload::unzip(const QString & file, const QString & path)
 {
   mz_zip_archive zip_archive;
   memset(&zip_archive, 0, sizeof(zip_archive));
@@ -201,7 +204,7 @@ bool ProcessSDDwnld::unzip(const QString & file, const QString & path)
   return true;
 }
 
-bool ProcessSDDwnld::copyRecursively(const QString & srcFilePath, const QString & destFilePath)
+bool ProcessSDDownload::copyRecursively(const QString & srcFilePath, const QString & destFilePath)
 {
   QFileInfo srcFileInfo(srcFilePath);
   if (srcFileInfo.isDir()) {

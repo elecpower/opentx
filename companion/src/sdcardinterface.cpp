@@ -19,25 +19,128 @@
  */
 
 #include "sdcardinterface.h"
+#include "constants.h"
 #include "appdata.h"
 #include "firmwareinterface.h"
 #include "process_sd_dwnld.h"
 #include "progresswidget.h"
 
+//  TODO  merge sd sync and refactor Companion code to use this class after PR accepted
+
+QString SDCardInterface::rootPath(SDImageRoots root)
+{
+  QString path;
+  switch (root) {
+    case SD_IMAGE_ROOT_STD:
+      path = g.profile[g.id()].sdPath();
+      break;
+    case SD_IMAGE_ROOT_CUSTOM:
+      path = g.profile[g.id()].sdPathCustom();
+      break;
+    default:
+      qDebug() << "No mapping for root folder id:" << root;
+  }
+  path.trimmed();
+  qDebug() << "Path:" << path;
+  return path;
+}
+
+bool SDCardInterface::hasRootPath(SDImageRoots root)
+{
+  return rootPath(root).isEmpty() ? false : true;
+}
+
+QString SDCardInterface::folderPath( SDImageRoots root, SDFolders folder)
+{
+  QString path = rootPath(root) % "/";
+
+  //  these folders are expected to exist though not all needed for all radios. sub folders may exist eg for lua scripts
+  switch (folder) {
+    case SD_ROOT:
+      break;
+    case SD_CROSSFIRE:
+      path.append("CROSSFIRE");
+      break;
+    case SD_EEPROM:
+      path.append("EEPROM");
+      break;
+    case SD_FIRMWARE:
+      path.append("FIRMWARE");
+      break;
+    case SD_IMAGES:
+      path.append("IMAGES");
+      break;
+    case SD_LAYOUTS:
+      path.append("LAYOUTS");
+      break;
+    case SD_LOGS:
+      path.append("LOGS");
+      break;
+    case SD_MODELS:
+      path.append("MODELS");
+      break;
+    case SD_SCREENSHOTS:
+      path.append("SCREENSHOTS");
+      break;
+    case SD_SCRIPTS:
+      path.append("SCRIPTS");
+      break;
+    case SD_SCRIPTS_FUNCTIONS:
+      path.append("SCRIPTS/FUNCTIONS");
+      break;
+    case SD_SCRIPTS_MIXES:
+      path.append("SCRIPTS/MIXES");
+      break;
+    case SD_SCRIPTS_TELEMETRY:
+      path.append("SCRIPTS/TELEMETRY");
+      break;
+    case SD_SCRIPTS_WIZARD:
+      path.append("SCRIPTS/WIZARD");
+      break;
+    case SD_SOUNDS:
+      path.append("SOUNDS");
+      break;
+    case SD_SOUNDS_LANGUAGE:
+      path.append("SOUNDS/" % g.locale());
+      break;
+    case SD_SOUNDS_LANGUAGE_SYSTEM:
+      path.append("SOUNDS/"  % g.locale() % "/SYSTEM");
+      break;
+    case SD_SXR:
+      path.append("SxR");
+      break;
+    case SD_THEMES:
+      path.append("THEMES");
+      break;
+    case SD_WIDGETS:
+      path.append("WIDGETS");
+      break;
+    default:
+      qDebug() << "No mapping for folder id:" << folder;
+  }
+  qDebug() << "Path:" << path;
+  return path;
+}
+
 QString SDCardInterface::currentVersion()
 {
-  QString filepath = g.profile[g.id()].sdPath();
-  if (filepath.isNull() | filepath.isEmpty()) {
+  if (hasRootPath(SD_IMAGE_ROOT_STD)) {
     QMessageBox::critical(this, CPN_STR_APP_NAME, tr("No SD Card folder set in this profile. Update settings and retry."), QMessageBox::Ok);
     return;
   }
+
+  QString filepath = rootPath(SD_IMAGE_ROOT_STD);
+
+  //  check radio type from last sd card source file name equals profile radio type just in case chnaged after download
+  //  there is nothing in the unzipped image to guarantee
+  //  also need to cater for manually installed eg Amber pack
 
   QString lastSDCardVerString;
   int lastSDCardMajor;
   int lastSDCardMinor;
   int lastSDCardVersion;
 
-  filepath.append("/" + CPN_SDCARD_VERS_FILE);
+  filepath.append("/" % CPN_SDCARD_VERS_FILE);
   QFile file(filepath);
   if (file.exists()) {
     if (!file.open(QFile::ReadOnly | QFile::Text)) {
@@ -86,33 +189,7 @@ QString SDCardInterface::currentVersion()
   return vers;
 }
 
-QString SDCardInterface::downloadUrl()
-{
-  QString url = g.openTxCurrentDownloadBranchUrl() % QStringLiteral("sdcard/");
-  QString fwType = g.profile[g.id()].fwType();
-  QStringList list = fwType.split("-");
-  QString firmware = QString("%1-%2").arg(list[0]).arg(list[1]);
-  if (g.boundedOpenTxBranch() != AppData::BRANCH_NIGHTLY_UNSTABLE) {
-    url.append(QString("%1/").arg(firmware));
-  }
-  // QDesktopServices::openUrl(url);
-
-  //  hard code until find a way to determine from fw or app setting
-  //  or return list of files and allow user to select or
-  //  use the version to find a match as the url points to the folder before we try and add the zip file name
-  //  use the version check code model
-  QString fwFamily = "taranis-x9";
-  // eg sdcard-taranis-x9-2.2V0018.zip
-  QString sdZipSrcFile = QString("sdcard-%1-%2.zip").arg(fwFamily).arg(lastSDCardVerString);
-  url.append(sdZipSrcFile);
-
-  // uncomment for testing
-  url.replace("2.3","2.2");
-
-  return url;
-}
-
-bool SDCardInterface::isImageCurrent()
+bool SDCardInterface::isStructureCurrent()
 {
   //  once the sd card is downloaded and installed it is not easy to determine the radio it is for and not all contents are the same eg lua scripts
   //  so should the user change the radio type in the profile after an sd card is downloaded there could be a mismatch
@@ -124,21 +201,72 @@ bool SDCardInterface::isImageCurrent()
   return true;
 }
 
-QString SDCardInterface::zipSourceFile()
+QString SDCardInterface::downloadZipUrl()
+{
+  QString url = g.openTxCurrentDownloadBranchSDCardUrl() % "/");
+  if (g.boundedOpenTxBranch() != AppData::BRANCH_NIGHTLY_UNSTABLE) {
+    QString fwType = g.profile[g.id()].fwType();
+    QStringList list = fwType.split("-");
+    url.append(QString("%1-%2").arg(list[0]).arg(list[1]) % "/");
+  }
+  url.append(sourceZipFile);
+
+  // force version for testing
+  url.replace("2.3","2.2");       //  TODO  remove ater testing
+
+  return url;
+}
+
+QString SDCardInterface::sourceZipFile()
 {
   QString file = "";
-  return file
+  //  hard code until find a way to determine from fw or app setting
+  //  or return list of files and allow user to select or
+  //  use the version to find a match as the url points to the folder before we try and add the zip file name
+  //  use the version check code model
+  QString fwFamily = "taranis-x9";
+  // eg sdcard-taranis-x9-2.2V0018.zip
+  QString sdZipSrcFile = QString("sdcard-%1-%2.zip").arg(fwFamily).arg(lastSDCardVerString);
+  return file;
 }
 
-QString SDCardInterface::defaultDestPath()
+QString SDCardInterface::destZipPath()
 {
-  return g.lastSDDir() % "/" % zipSourceFile();
+  return g.profile[g.id()].sdLastZipFolder() % "/" % sourceZipFile();
 }
 
-void SDCardInterface::downloadDest(const QString destPath)
+void SDCardInterface::setLastZipDownload(const QString destPath)
 {
-  g.profile[g.id()].sdVersion(currentVersion());
-  g.profile[g.id()].sdZipSrcFile(zipFile());
-  g.profile[g.id()].sdZipDestFile(QFileInfo(destPath).fileName());
-  g.lastSDDir(QFileInfo(destPath).dir().absolutePath());
+  g.profile[g.id()].sdLastZipVersion(currentVersion());
+  g.profile[g.id()].sdLastZipSrcFile(sourceZipFile());
+  g.profile[g.id()].sdLastZipDestFile(QFileInfo(destPath).fileName());
+  g.profile[g.id()].sdLastZipFolder(QFileInfo(destPath).dir().absolutePath());
+}
+
+bool SDCardInterface::createCustomFolders()
+{
+  return createFolderStructure(SD_IMAGE_ROOT_CUSTOM);
+}
+
+bool SDCardInterface::createFolderStructure(SDImageRoots root)
+{
+  QString path;
+  for (int x = 0; x < SD_ENUM_COUNT; x++) {
+    path = folderPath(root, x);
+    if (!QDir(path).exists() {
+      if(!QDir().mkpath(path))) {
+          qDebug() << "Failed to create folder:" << path;
+          return false;
+      }
+      else {
+        qDebug() << "Created folder:" << path;
+      }
+    }
+  }
+  return true;
+}
+
+bool SDCardInterface::mergeCustomFolder()
+{
+  return true;
 }
