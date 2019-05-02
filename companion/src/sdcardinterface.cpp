@@ -52,9 +52,13 @@ bool SDCardInterface::hasRootPath(SDImageRoots root)
 
 QString SDCardInterface::folderPath( SDImageRoots root, SDFolders folder)
 {
-  QString path = rootPath(root) % "/";
+  //  TODO  Full SD card structure here (see radio) and change all localised references throughout Companion
+  //  TODO  Should really be shared between radio and Companion like may other pieces eg common/src
 
   //  these folders are expected to exist though not all needed for all radios. sub folders may exist eg for lua scripts
+
+  QString path = rootPath(root) % "/";
+
   switch (folder) {
     case SD_ROOT:
       break;
@@ -122,6 +126,35 @@ QString SDCardInterface::folderPath( SDImageRoots root, SDFolders folder)
   return path;
 }
 
+bool SDCardInterface::isRadioFamilyCurrent(const QString newFamily)
+{
+  return newFamily == currentRadioFamily();
+}
+
+QString SDCardInterface::readFileRecord(const QString path)
+{
+  QString str;
+  QFile file(path);
+  if (file.exists()) {
+    if (file.open(QFile::ReadOnly | QFile::Text)) {
+      QTextStream in(&file);
+      if (in.status() == QTextStream::Ok) {
+        str = in.readLine();
+        if (!(in.status() == QTextStream::Ok)) {
+          str = "";
+        }
+      }
+      file.close();
+    }
+  }
+  return str;
+}
+
+QString SDCardInterface::currentRadioFamily()
+{
+  return readFileRecord(rootPath(SD_IMAGE_ROOT_STD) % "/" % CPN_SDCARD_FAMILY_FILE);
+}
+
 QString SDCardInterface::currentVersion()
 {
   if (hasRootPath(SD_IMAGE_ROOT_STD)) {
@@ -129,43 +162,11 @@ QString SDCardInterface::currentVersion()
     return;
   }
 
-  QString filepath = rootPath(SD_IMAGE_ROOT_STD);
-
-  //  check radio type from last sd card source file name equals profile radio type just in case chnaged after download
-  //  there is nothing in the unzipped image to guarantee
-  //  also need to cater for manually installed eg Amber pack
-
-  QString lastSDCardVerString;
   int lastSDCardMajor;
   int lastSDCardMinor;
   int lastSDCardVersion;
 
-  filepath.append("/" % CPN_SDCARD_VERS_FILE);
-  QFile file(filepath);
-  if (file.exists()) {
-    if (!file.open(QFile::ReadOnly | QFile::Text)) {
-      QMessageBox::critical(this, CPN_STR_APP_NAME, tr("Cannot open profile SD card version file"), QMessageBox::Ok);
-      return;
-    }
-    else {
-      QTextStream in(&file);
-      if (in.status()==QTextStream::Ok) {
-        lastSDCardVerString = in.readLine();
-        if (!(in.status()==QTextStream::Ok)) {
-          QMessageBox::critical(this, CPN_STR_APP_NAME, tr("Cannot read profile SD card version file"), QMessageBox::Ok);
-          lastSDCardVerString = "";
-          return;
-        }
-        else {
-          qDebug() << "SD card version found: " << lastSDCardVerString;
-        }
-      }
-    }
-    file.close();
-  }
-  else {
-    qDebug() << "SD card version file not found";
-  }
+  QString lastSDCardVerString = readFileRecord(rootPath(SD_IMAGE_ROOT_STD) % "/" % CPN_SDCARD_VERS_FILE);
 
   int fwSDCardVersion = 0;
   filepath = g.profile[g.id()].fwName();
@@ -204,30 +205,43 @@ bool SDCardInterface::isStructureCurrent()
 QString SDCardInterface::downloadZipUrl()
 {
   QString url = g.openTxCurrentDownloadBranchSDCardUrl() % "/");
-  if (g.boundedOpenTxBranch() != AppData::BRANCH_NIGHTLY_UNSTABLE) {
-    QString fwType = g.profile[g.id()].fwType();
-    QStringList list = fwType.split("-");
-    url.append(QString("%1-%2").arg(list[0]).arg(list[1]) % "/");
-  }
-  url.append(sourceZipFile);
 
-  // force version for testing
-  url.replace("2.3","2.2");       //  TODO  remove ater testing
+  if (g.boundedOpenTxBranch() != AppData::BRANCH_NIGHTLY_UNSTABLE)
+    url.append((QStringList(g.profile[g.id()].fwType().split("-").mid(0, 2)).join("-")) % "/");
 
+  url.append(sourceZipFile());
+
+  url.replace("2.3","2.2");       //  TODO  new version does not exist so force to existing - remove ater testing
+
+  qDebug() << "URL:" << url;
   return url;
+}
+
+QString SDCardInterface::radioFamily()
+{
+  //  TODO this probably should be moved to Firmware as it is related and
+  //        to ensure it gets kept in sync with radio changes
+  QString fwFamily = "";
+  QString fwid = QStringList(g.profile[g.id()].fwType().split("-").mid(0, 2)).join("-");
+
+  if (fwid == "opentx-x7" || fwid == "opentx-xlite" || fwid == "opentx-xlites")
+      fwFamily = "taranis-x7";
+  else if (fwid == "opentx-x9d" || fwid == "opentx-x9d+" || fwid == "opentx-x9e")
+      fwFamily = "taranis-x9";
+  else if (fwid == "opentx-x10" || fwid == "opentx-x12s")
+      fwFamily = "horus";
+  else if (fwid == "opentx-9xrpro" || fwid == "opentx-ar9x" || fwid == "opentx-sky9x")
+      fwFamily = "9xarm";
+
+  if (fwFamily.isEmpty()) {
+    qDebug() << "Error - Unknown firmware id:" << fwid;
+
+  return fwFamily;
 }
 
 QString SDCardInterface::sourceZipFile()
 {
-  QString file = "";
-  //  hard code until find a way to determine from fw or app setting
-  //  or return list of files and allow user to select or
-  //  use the version to find a match as the url points to the folder before we try and add the zip file name
-  //  use the version check code model
-  QString fwFamily = "taranis-x9";
-  // eg sdcard-taranis-x9-2.2V0018.zip
-  QString sdZipSrcFile = QString("sdcard-%1-%2.zip").arg(fwFamily).arg(lastSDCardVerString);
-  return file;
+  return QString("sdcard-%1-%2.zip").arg(radioFamily()).arg(lastSDCardVerString);
 }
 
 QString SDCardInterface::destZipPath()
@@ -235,7 +249,7 @@ QString SDCardInterface::destZipPath()
   return g.profile[g.id()].sdLastZipFolder() % "/" % sourceZipFile();
 }
 
-void SDCardInterface::setLastZipDownload(const QString destPath)
+void SDCardInterface::setLastZip(const QString destPath)
 {
   g.profile[g.id()].sdLastZipVersion(currentVersion());
   g.profile[g.id()].sdLastZipSrcFile(sourceZipFile());

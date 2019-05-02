@@ -1800,7 +1800,7 @@ void MainWindow::downloadLastSDImageUpdate()
   QString dest = QFileDialog::getSaveFileName(this, tr("Save As"), sd.defaultDestPath(), ZIP_FILES_FILTER);
   if (!dest.isEmpty()) {
     qDebug() << "Downloading SD image " << url << " to " << dest;
-    sd.setLastZipDownload(dest);
+    sd.setLastZip(dest);
     downloadDialog * dd = new downloadDialog(this, url, dest);
     connect(dd, SIGNAL(accepted()), this, SLOT(updateDownloadedSDImage()));
     dd->exec();

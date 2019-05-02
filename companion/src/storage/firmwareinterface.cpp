@@ -378,6 +378,9 @@ unsigned int FirmwareInterface::save(const QString & filename)
 
 void FirmwareInterface::splitSDCardVersion(const QString src, int & fwMajor, int & fwMinor, int & sdVersion)
 {
+  sdCardFwVerMajor = 0;
+  sdCardFwVerMinor = 0;
+  sdCardVersion = 0;
   //  expected format x.xVnnnn or blank if sd card not supported
   //  this pattern matches the contents of the distributed sd card version file contents
   if (src.contains("V")) {
@@ -389,7 +392,4 @@ void FirmwareInterface::splitSDCardVersion(const QString src, int & fwMajor, int
       sdCardFwVerMinor = l2[1].toInt();
     }
   }
-  sdCardFwVerMajor = 0;
-  sdCardFwVerMinor = 0;
-  sdCardVersion = 0;
 }
