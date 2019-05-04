@@ -64,25 +64,42 @@ class SDCardInterface : public QObject
       SD_FOLDER_COUNT
     };
 
-    QString currentVersion();
-    QString readFileRecord(const QString path);
-    bool isRadioFamilyCurrent(const QString newFamily);
-    QString currentRadioFamily();
-    bool isStructureCurrent();
+    void SDCardInterface();
+    void SDCardInterface(const QString & family, const QString & version);
+
+    void setFamily(QString & family);
+    void setVersion(QString & version);
+
+    QString firmwareId();
+    QString firmwareFamily();
+    QString firmwareVersion();
+    QString firmwareReqSDVersion();
+
     bool hasRootPath(SDImageRoots root);
     QString rootPath(SDImageRoots root);
     QString folderPath(SDFolders folder, SDImageRoots root);
+
+    bool isFamilyCurrent(const QString & family);
+    bool isVersionCurrent(const QString & version);
+    bool isCurrent(const QString & family, const QString & version);
+    QString installedFamily();
+    QString installedVersion();
+
     QString downloadZipUrl();
     QString sourceZipFile();
     QString destZipPath();
-    void setLastZip(const QString destPath);
-    bool createCustomFolders();
+    void setLastZip(const QString & destPath);
+
     bool createFolderStructure(SDImageRoots root);
+    bool createCustomFolders();
     bool mergeCustomFolder();
 
   protected:
+    QString fileReadRecord(const QString & path);
+    bool fileWriteRecord(const QString & path, const QString & data);
 
-
+    QString m_Family;
+    QString m_Version;
 };
 
 

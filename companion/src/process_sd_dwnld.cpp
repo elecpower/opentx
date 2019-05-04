@@ -19,6 +19,7 @@
  */
 
 #include "process_sd_dwnld.h"
+#include "sdcardinterface.h"
 #include "constants.h"
 #include "progresswidget.h"
 #include <QEventLoop>

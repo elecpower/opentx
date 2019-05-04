@@ -312,6 +312,7 @@ class AppData;
 
 
 //! \brief FwRevision class stores data about downloaded firmware binaries. It uses dynamic key names and does not have any properties.
+//! \todo TODO: Store Required SD Version as a property to improve SD image handling
 class FwRevision: public CompStoreObj
 {
   Q_OBJECT
@@ -325,6 +326,11 @@ class FwRevision: public CompStoreObj
     explicit FwRevision() : CompStoreObj() { CompStoreObj::addDynamicPropertyGroup(propertyGroup()); }
     QString propertyGroup() const override { return QStringLiteral("FwRevisions"); }
     friend class AppData;
+
+  /*  TODO
+  private:
+    PROPERTYSTR(sdVersion)
+  */
 };
 
 
