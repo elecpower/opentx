@@ -65,12 +65,14 @@ class SDCardInterface : public QObject
     };
 
     void SDCardInterface();
-    void SDCardInterface(const QString & family, const QString & version);
+    void SDCardInterface(const QString & fwType);
+    void SDCardInterface(const QString & fwType, const QString & version);
 
-    void setFamily(QString & family);
+    void setFirmwareType(const QString & fwType);
     void setVersion(QString & version);
 
-    QString firmwareId();
+    QString getFirmwareIdFromType(const QString & fwType);
+    QString profileFirmwareId();
     QString firmwareFamily();
     QString firmwareVersion();
     QString firmwareReqSDVersion();
@@ -82,8 +84,10 @@ class SDCardInterface : public QObject
     bool isFamilyCurrent(const QString & family);
     bool isVersionCurrent(const QString & version);
     bool isCurrent(const QString & family, const QString & version);
+    bool isCompatible():
     QString installedFamily();
     QString installedVersion();
+    bool isUpdateAvailable();
 
     QString downloadZipUrl();
     QString sourceZipFile();
@@ -93,11 +97,20 @@ class SDCardInterface : public QObject
     bool createFolderStructure(SDImageRoots root);
     bool createCustomFolders();
     bool mergeCustomFolder();
+    void writeFamilyFile();
 
   protected:
     QString fileReadRecord(const QString & path);
     bool fileWriteRecord(const QString & path, const QString & data);
 
+    struct SDVersion {
+      int major;
+      int minor;
+      int revision;
+    };
+
+    QString m_Type;
+    QString m_Id;
     QString m_Family;
     QString m_Version;
 };

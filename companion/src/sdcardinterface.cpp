@@ -27,55 +27,44 @@
 
 //  TODO  merge sd sync and refactor Companion code to use this class after this PR merged
 
-void SDCardInterface::SDCardInterface():
-  m_Family(NULL),
-  m_Version(NULL)
+void SDCardInterface::SDCardInterface()
 {
-  setFamily(firmwareFamily());
+  setFirmwareType(profileFirmwareType());
   setVersion(CPN_SDCARD_REQ_VERSION);
 }
 
-void SDCardInterface::SDCardInterface(const QString & family, const QString & version):
-  m_Family(family),
-  m_Version(version)
+void SDCardInterface::SDCardInterface(const QString & fwType)
 {
+  setFirmwareType(fwType);
+  setVersion(CPN_SDCARD_REQ_VERSION);
 }
 
-void SDCardInterface::setFamily(QString & family)
+void SDCardInterface::SDCardInterface(const QString & fwType, const QString & version)
 {
-  m_Family = family;
+  setFirmwareType(fwType);
+  setVersion(version);
 }
 
-void SDCardInterface::setVersion(QString & version)
+void SDCardInterface::setVersion(const QString & version)
 {
   m_Version = version;
 }
 
-QString SDCardInterface::firmwareId()
+void SDCardInterface::setFirmwareType(const QString & fwType)
 {
-  return QStringList(g.profile[g.id()].fwType().split("-").mid(0, 2)).join("-");
-}
+  m_Type = fwType;
+  m_Id = getFirmwareIdFromType(m_Type);
+  if (m_Id == "opentx-x7" || m_Id == "opentx-xlite" || m_Id == "opentx-xlites")
+      m_Family = "taranis-x7";
+  else if (m_Id == "opentx-x9d" || m_Id == "opentx-x9d+" || m_Id == "opentx-x9e")
+      m_Family = "taranis-x9";
+  else if (m_Id == "opentx-x10" || m_Id == "opentx-x12s")
+      m_Family = "horus";
+  else if (m_Id == "opentx-9xrpro" || m_Id == "opentx-ar9x" || m_Id == "opentx-sky9x")
+      m_Family = "9xarm";
 
-QString SDCardInterface::firmwareFamily()
-{
-  //  TODO this probably should be moved to Firmware as it is related and
-  //        to ensure it gets kept in sync with radio changes
-  QString fwFamily = "";
-  QString fwid = firmwareId();
-
-  if (fwid == "opentx-x7" || fwid == "opentx-xlite" || fwid == "opentx-xlites")
-      fwFamily = "taranis-x7";
-  else if (fwid == "opentx-x9d" || fwid == "opentx-x9d+" || fwid == "opentx-x9e")
-      fwFamily = "taranis-x9";
-  else if (fwid == "opentx-x10" || fwid == "opentx-x12s")
-      fwFamily = "horus";
-  else if (fwid == "opentx-9xrpro" || fwid == "opentx-ar9x" || fwid == "opentx-sky9x")
-      fwFamily = "9xarm";
-
-  if (fwFamily.isEmpty()) {
-    qDebug() << "Error - Unknown firmware id:" << fwid;
-
-  return fwFamily;
+  if (m_Family.isEmpty())
+    qDebug() << "Error - No family defind for firmware id:" << m_Id;
 }
 
 QString SDCardInterface::firmwareVersion()
@@ -92,6 +81,16 @@ QString SDCardInterface::firmwareReqSDVersion()
   //  if no firmware file found assume build version from version.h
   //  but may not match latest frmware download if for an old version
   return "";
+}
+
+QString SDCardInterface::getFirmwareIdFromType(const QString & fwType)
+{
+  return QStringList(fwType.split("-").mid(0, 2)).join("-");
+}
+
+QString SDCardInterface::profileFirmwareType()
+{
+  return g.profile[g.id()].fwType();
 }
 
 QString SDCardInterface::folderPath( SDImageRoots root, SDFolders folder)
@@ -200,6 +199,43 @@ QString SDCardInterface::installedVersion()
   return readFileRecord(rootPath(SD_IMAGE_ROOT_STD) % "/" % CPN_SDCARD_VERS_FILE);
 }
 
+bool SDCardInterface::isUpdateAvailable()
+{
+  bool result = false;
+  SDVersion instver = splitVersionString(installedVersion());
+  SDVersion currver = splitVersionString(currentVersion());
+
+  if (instver.major < currver.major) {
+    result true;
+  }
+  else if (instver.minor < currver.minor) {
+    result true;
+  }
+  else if (instver.revision < currver.revision) {
+    result true;
+  }
+  return result;
+}
+
+SDVersion SDCardInterface::splitVersionString(const QString str)
+{
+  SDVersion vers;
+  vers.major = 0;
+  vers.minor = 0;
+  vers.revision = 0;
+
+  if (str.contains("V")) {
+    QStringList l1 = str.split("V");
+    vers.revision = l1[1].toInt();
+    if (l1[0].contains(".")) {
+      QStringList l2 = l1[0].split(".");
+      vers.major = l2[0].toInt();
+      vers.minor = l2[1].toInt();
+    }
+  }
+  return vers;
+}
+
 bool SDCardInterface::isFamilyCurrent(const QString & family)
 {
   return family == m_Family;
@@ -215,12 +251,17 @@ bool SDCardInterface::isCurrent(const QString & family, const QString & version)
   return (isFamilyCurrent(family) && isVersionCurrent(version));
 }
 
+bool SDCardInterface::isCompatible()    //  TODO is this the same as isCurrent????
+{
+  return true;
+}
+
 QString SDCardInterface::downloadZipUrl()
 {
   QString url = g.openTxCurrentDownloadBranchSDCardUrl() % "/");
 
   if (g.boundedOpenTxBranch() != AppData::BRANCH_NIGHTLY_UNSTABLE)
-    url.append(firmwareId() % "/");
+    url.append(m_Id % "/");
 
   url.append(sourceZipFile());
 
@@ -278,6 +319,12 @@ bool SDCardInterface::mergeCustomFolder()
   return true;
 }
 
+void SDCardInterface::writeFamilyFile()
+{
+  if (!fileWriteFile(rootPath(SD_IMAGE_ROOT_STD) % "/" % CPN_SDCARD_FAMILY_FILE, m_Family))
+    qDebug() << "Error - failed to write SD Family file";
+}
+
 QString SDCardInterface::fileReadRecord(const QString & path)
 {
   QString data;
@@ -308,10 +355,15 @@ bool SDCardInterface::fileWriteRecord(const QString & path, const QString & data
       if ((out.status() == QTextStream::Ok)) {
         out.flush();
         if ((out.status() == QTextStream::Ok)) {
-          result = true;
+          if (file.close()) {
+            result = true;
+          }
+        }
       }
     }
-    file.close();
+    else {
+      file.close();
+    }
   }
   return result;
 }
