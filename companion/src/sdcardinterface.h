@@ -26,7 +26,7 @@
 #include <QObject>
 #include <QString>
 
-#define CPN_SDCARD_FAMILY_FILE         QStringLiteral("opentx.sdcard.family")
+#define CPN_SDCARD_FLAVOUR_FILE         QStringLiteral("opentx.sdcard.flavour")
 #define CPN_SDCARD_VERS_FILE           QStringLiteral("opentx.sdcard.version")
 #define CPN_SDCARD_REQ_VERSION         QStringLiteral(SDCARD_VERSION)
 
@@ -68,12 +68,12 @@ class SDCardInterface : public QObject
     void SDCardInterface(const QString & fwType);
     void SDCardInterface(const QString & fwType, const QString & version);
 
-    void setFirmwareType(const QString & fwType);
+    void setFirmware(const QString & fwType, const QString & reqSDVersion);
     void setVersion(QString & version);
 
     QString getFirmwareIdFromType(const QString & fwType);
     QString profileFirmwareId();
-    QString firmwareFamily();
+    QString firmwareFlavour();
     QString firmwareVersion();
     QString firmwareReqSDVersion();
 
@@ -81,11 +81,11 @@ class SDCardInterface : public QObject
     QString rootPath(SDImageRoots root);
     QString folderPath(SDFolders folder, SDImageRoots root);
 
-    bool isFamilyCurrent(const QString & family);
+    bool isFlavourCurrent(const QString & flavour);
     bool isVersionCurrent(const QString & version);
-    bool isCurrent(const QString & family, const QString & version);
+    bool isCurrent(const QString & flavour, const QString & version);
     bool isCompatible():
-    QString installedFamily();
+    QString installedFlavour();
     QString installedVersion();
     bool isUpdateAvailable();
 
@@ -103,16 +103,12 @@ class SDCardInterface : public QObject
     QString fileReadRecord(const QString & path);
     bool fileWriteRecord(const QString & path, const QString & data);
 
-    struct SDVersion {
-      int major;
-      int minor;
-      int revision;
-    };
-
-    QString m_Type;
-    QString m_Id;
-    QString m_Family;
-    QString m_Version;
+    QString m_fwType;
+    QString m_fwId;
+    int m_fwVersionId;
+    QString m_reqSDFlavour;
+    QString m_reqSDVersion;
+    int m_reqSDVersionId;
 };
 
 
