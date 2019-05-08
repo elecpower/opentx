@@ -483,23 +483,6 @@ void Helpers::exportAppSettings(QWidget * dlgParent)
     exportAppSettings(dlgParent);
 }
 
-int Helpers::reqSDVersionToIndex(const QString & vers)
-{
-  int result = 0;
-  QStringList parts;
-
-  if (vers.contains("V")) {
-    parts = str.split("V");
-    result = parts[1].toInt();
-  }
-  if (parts[0].contains(".")) {
-    parts = parts[0].split(".");
-    result += parts[1].toInt() * 1000;
-    result += parts[0].toInt() * 100000;
-  }
-  return result;
-}
-
 void startSimulation(QWidget * parent, RadioData & radioData, int modelIdx)
 {
   QString fwId = SimulatorLoader::findSimulatorByFirmwareName(getCurrentFirmware()->getId());

@@ -89,6 +89,8 @@ class SDCardInterface : public QObject
     QString installedVersion();
     bool isUpdateAvailable();
 
+    int reqSDVersionToIndex(const QString & vers);
+
     QString downloadZipUrl();
     QString sourceZipFile();
     QString destZipPath();

@@ -59,7 +59,6 @@ class FirmwareInterface
     unsigned int save(const QString & fileName);
     bool isValid();
     inline QString getReqSDVersion() { return reqSDVersion; }
-    inline int getReqSDVersionId() { return reqSDVersionId; }
 
   private:
     QByteArray flash;
@@ -86,7 +85,6 @@ class FirmwareInterface
     QImage::Format splash_format;
     bool isValidFlag;
     QString reqSDVersion;
-    int reqSDVersionId;
 };
 
 #endif // _FIRMWAREINTERFACE_H_

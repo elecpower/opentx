@@ -23,6 +23,7 @@
 #include "appdata.h"
 #include "version.h"
 #include "helpers.h"
+#include "eeprominterface.h"
 #include "firmwareinterface.h"
 #include "process_sd_dwnld.h"
 #include "progresswidget.h"
@@ -43,6 +44,23 @@ void SDCardInterface::SDCardInterface(const QString & fwType, const QString & ve
 {
   setFirmwareType(fwType);
   setVersion(version);
+}
+
+int SDCardInterface::reqSDVersionToIndex(const QString & vers)
+{
+  int result = 0;
+  QStringList parts;
+
+  if (vers.contains("V")) {
+    parts = str.split("V");
+    result = parts[1].toInt();
+  }
+  if (parts[0].contains(".")) {
+    parts = parts[0].split(".");
+    result += parts[1].toInt() * 1000;
+    result += parts[0].toInt() * 100000;
+  }
+  return result;
 }
 
 void SDCardInterface::setVersion(const QString & version)
@@ -68,7 +86,7 @@ void SDCardInterface::setFirmware(const QString & fwType, const QString & reqSDV
     qDebug() << "Error - No SD card flavour defined for firmware id:" << m_fwId;
 
   m_reqSDVersion = reqSDVersion;
-  m_reqSDVersionId = Helpers::reqSDVersionToIndex(reqSDVersion);
+  m_reqSDVersionId = reqSDVersionToIndex(reqSDVersion);
 }
 
 QString SDCardInterface::getFirmwareIdFromType(const QString & fwType)
@@ -81,7 +99,7 @@ QString SDCardInterface::profileFirmwareType()
   return g.profile[g.id()].fwType();
 }
 
-SDInfo SDCardInterface::getFirmwareInfo()
+SDInfo SDCardInterface::getLastFirmware()
 {
   //  check latest version downloaded from appdata
   //  what if it is not the version in the version.h
@@ -89,8 +107,15 @@ SDInfo SDCardInterface::getFirmwareInfo()
   //  probably should be saving req sd version as part of registering the firmware download
   //    opentx-x9d+-2.2.3
   //  req SD ver 2.2V0018
-  SDInfo info;
-  FirmwareInterface * fw = FirmwareInterface();
+  Firmware * fw = Firmware::getCurrentVariant();
+  m_fwId = fw->getId();
+  m_fwVersionId = version2index(m_fwId);
+
+  if (QFile(fwName).exists()) {
+    FirmwareInterface fwif = FirmwareInterface(fwName);
+    m_reqSDVersion = fwif.getReqSDVersion();
+    m_reqSdVersionId = reqSDVersionToIndex(m_reqSDVersion);
+  }
 
   return info;
 }

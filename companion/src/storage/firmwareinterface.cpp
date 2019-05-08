@@ -45,7 +45,7 @@ FirmwareInterface::FirmwareInterface(const QString & filename):
   splashWidth(0),
   splashHeight(0),
   isValidFlag(false),
-  sdCardVersionId(0)
+  reqSDVersion(NULL)
 {
   if (!filename.isEmpty()) {
     QFile file(filename);
@@ -83,7 +83,6 @@ FirmwareInterface::FirmwareInterface(const QString & filename):
       eepromVersion = eepromId.toInt();
     }
 
-    versionId = version2index(version);
     seekSplash();
     isValidFlag = !version.isEmpty();
   }

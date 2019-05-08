@@ -128,8 +128,6 @@ namespace Helpers
 
   void exportAppSettings(QWidget * dlgParent = nullptr);
 
-  int reqSDVersionToIndex(const QString & vers);
-
 }  // namespace Helpers
 
 // TODO : move globals to Helpers namespace
