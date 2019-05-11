@@ -65,13 +65,13 @@ class SDCardInterface : public QObject
     };
 
     void SDCardInterface();
-    void SDCardInterface(const QString & fwType);
-    void SDCardInterface(const QString & fwType, const QString & version);
+    int reqSDVersionToIndex(const QString & version);
+    QString getIdFromType(const QString & type);
+    QString getFlavourFromId(const QString & id);
+    QString getFlavourFromType(const QString & type);
 
-    void setFirmware(const QString & fwType, const QString & reqSDVersion);
-    void setVersion(QString & version);
+    void setCurrentFirmware(const QString & version, const QString & type, const QString & reqSDVersion);
 
-    QString getFirmwareIdFromType(const QString & fwType);
     QString profileFirmwareId();
     QString firmwareFlavour();
     QString firmwareVersion();
@@ -84,12 +84,12 @@ class SDCardInterface : public QObject
     bool isFlavourCurrent(const QString & flavour);
     bool isVersionCurrent(const QString & version);
     bool isCurrent(const QString & flavour, const QString & version);
-    bool isCompatible():
     QString installedFlavour();
     QString installedVersion();
+    bool isInstalledCompatible():
     bool isUpdateAvailable();
 
-    int reqSDVersionToIndex(const QString & vers);
+    void setCurrent(const QString & flavour, const QString & version);
 
     QString downloadZipUrl();
     QString sourceZipFile();
@@ -108,9 +108,12 @@ class SDCardInterface : public QObject
     QString m_fwType;
     QString m_fwId;
     int m_fwVersionId;
-    QString m_reqSDFlavour;
-    QString m_reqSDVersion;
-    int m_reqSDVersionId;
+    QString fwFlavour;
+    QString m_fwReqSDVersion;
+    int m_fwReqSDVersionId;
+    QString m_flavour;
+    QString m_version;
+    int m_versionId;
 };
 
 

@@ -30,20 +30,6 @@
 
 void SDCardInterface::SDCardInterface()
 {
-  setFirmwareType(profileFirmwareType());
-  setVersion(CPN_SDCARD_REQ_VERSION);
-}
-
-void SDCardInterface::SDCardInterface(const QString & fwType)
-{
-  setFirmwareType(fwType);
-  setVersion(CPN_SDCARD_REQ_VERSION);
-}
-
-void SDCardInterface::SDCardInterface(const QString & fwType, const QString & version)
-{
-  setFirmwareType(fwType);
-  setVersion(version);
 }
 
 int SDCardInterface::reqSDVersionToIndex(const QString & vers)
@@ -63,35 +49,48 @@ int SDCardInterface::reqSDVersionToIndex(const QString & vers)
   return result;
 }
 
-void SDCardInterface::setVersion(const QString & version)
+QString SDCardInterface::getIdFromType(const QString & type)
 {
-  m_Version = version;
+  QStringList strl = type.split("-");
+  if (!(strl.size() < 2))
+    return strl.mid(0, 2)).join("-");
+  else
+    return "";
 }
 
-void SDCardInterface::setFirmware(const QString & fwType, const QString & reqSDVersion)
+QString SDCardInterface::getFlavourFromId(const QString & id)
 {
-  m_fwType = fwType;
-  m_fwId = getFirmwareIdFromType(fwType);
+  QString flavour = "";
 
-  if (m_fwId == "opentx-x7" || m_fwId == "opentx-xlite" || m_fwId == "opentx-xlites")
-      m_reqSDFlavour = "taranis-x7";
-  else if (m_Id == "opentx-x9d" || m_fwId == "opentx-x9d+" || m_fwId == "opentx-x9e")
-      m_reqSDFlavour = "taranis-x9";
-  else if (m_Id == "opentx-x10" || m_fwId == "opentx-x12s")
-      m_reqSDFlavour = "horus";
-  else if (m_Id == "opentx-9xrpro" || m_fwId == "opentx-ar9x" || m_fwId == "opentx-sky9x")
-      m_reqSDFlavour = "9xarm";
+  if (id == "opentx-x7" || id == "opentx-xlite" || id == "opentx-xlites")
+      flavour = "taranis-x7";
+  else if (id == "opentx-x9d" || id == "opentx-x9d+" || id == "opentx-x9e")
+      flavour = "taranis-x9";
+  else if (id == "opentx-x10" || id == "opentx-x12s")
+      flavour = "horus";
+  else if (id == "opentx-9xrpro" || id == "opentx-ar9x" || id == "opentx-sky9x")
+      flavour = "9xarm";
 
-  if (m_fwFlavour.isEmpty())
-    qDebug() << "Error - No SD card flavour defined for firmware id:" << m_fwId;
+  if (flavour.isEmpty())
+    qDebug() << "Error - No flavour defined for firmware id:" << id;
 
-  m_reqSDVersion = reqSDVersion;
-  m_reqSDVersionId = reqSDVersionToIndex(reqSDVersion);
+  return flavour;
 }
 
-QString SDCardInterface::getFirmwareIdFromType(const QString & fwType)
+QString SDCardInterface::getFlavourFromType(const QString & type)
 {
-  return QStringList(fwType.split("-").mid(0, 2)).join("-");
+  return getFlavourFromId(getIdFromType(type));
+}
+
+void SDCardInterface::setCurrentFirmware(const QString & version, const QString & type, const QString & reqSDVersion)
+{
+  m_fwVersion = version;
+  m_fwVersionId = version2index(m_fwVersionId);
+  m_fwType = type;
+  m_fwId = getIdFromType(type);
+  m_fwFlavour = getFlavourFromId(m_fwId);
+  m_fwReqSDVersion = reqSDVersion;
+  m_fwReqSDVersionId = reqSDVersionToIndex(m_fwReqSDVersion);
 }
 
 QString SDCardInterface::profileFirmwareType()
@@ -99,25 +98,17 @@ QString SDCardInterface::profileFirmwareType()
   return g.profile[g.id()].fwType();
 }
 
-SDInfo SDCardInterface::getLastFirmware()
+QString SDCardInterface::profileFirmwareName()
 {
-  //  check latest version downloaded from appdata
-  //  what if it is not the version in the version.h
-  //  if not version.h then cannot work out Req SD version
-  //  probably should be saving req sd version as part of registering the firmware download
-  //    opentx-x9d+-2.2.3
-  //  req SD ver 2.2V0018
+  return g.profile[g.id()].fwName();
+}
+
+void SDCardInterface::getLastFirmware()
+{
   Firmware * fw = Firmware::getCurrentVariant();
-  m_fwId = fw->getId();
-  m_fwVersionId = version2index(m_fwId);
-
-  if (QFile(fwName).exists()) {
-    FirmwareInterface fwif = FirmwareInterface(fwName);
-    m_reqSDVersion = fwif.getReqSDVersion();
-    m_reqSdVersionId = reqSDVersionToIndex(m_reqSDVersion);
-  }
-
-  return info;
+  QString filename = profileFirmwareName();
+  FirmwareInterface fwif = FirmwareInterface(filename);
+  setCurrentFirmware(fw->getId(), filename, fwif.getReqSDVersion());
 }
 
 QString SDCardInterface::folderPath(SDImageRoots root, SDFolders folder)
@@ -226,22 +217,9 @@ QString SDCardInterface::installedVersion()
   return readFileRecord(rootPath(SD_IMAGE_ROOT_STD) % "/" % CPN_SDCARD_VERS_FILE);
 }
 
-bool SDCardInterface::isUpdateAvailable()
+bool SDCardInterface::isInstalledCompatible(const QString & flavour, const QString & version)
 {
-  bool result = false;
-  SDVersion instver = splitVersionString(installedVersion());
-  SDVersion currver = splitVersionString(currentVersion());
-
-  if (instver.major < currver.major) {
-    result true;
-  }
-  else if (instver.minor < currver.minor) {
-    result true;
-  }
-  else if (instver.revision < currver.revision) {
-    result true;
-  }
-  return result;
+  return (installedFlavour() == flavour) && (installedVersion() == version);
 }
 
 bool SDCardInterface::isFlavourCurrent(const QString & flavour)
@@ -251,7 +229,7 @@ bool SDCardInterface::isFlavourCurrent(const QString & flavour)
 
 bool SDCardInterface::isVersionCurrent(const QString & version)
 {
-  return version == m_Version;
+  return version == CPN_SDCARD_REQ_VERSION;
 }
 
 bool SDCardInterface::isCurrent(const QString & flavour, const QString & version)
@@ -259,9 +237,16 @@ bool SDCardInterface::isCurrent(const QString & flavour, const QString & version
   return (isFlavourCurrent(flavour) && isVersionCurrent(version));
 }
 
-bool SDCardInterface::isCompatible()    //  TODO is this the same as isCurrent????
+bool SDCardInterface::isUpdateAvailable()
 {
-  return true;
+  return reqSDVersionToIndex(installedVersion() < reqSDVersionToIndex(CPN_SDCARD_REQ_VERSION);
+}
+
+void SDCardInterface::setCurrent(const QString & flavour, const QString & version)
+{
+  m_flavour = flavour;
+  m_version = version;
+  m_versionId = reqSDVersionToIndex(m_version);
 }
 
 QString SDCardInterface::downloadZipUrl()
@@ -281,7 +266,7 @@ QString SDCardInterface::downloadZipUrl()
 
 QString SDCardInterface::sourceZipFile()
 {
-  return QString("sdcard-%1-%2.zip").arg(m_fwFlavour).arg(m_sdRequired);
+  return QString("sdcard-%1-%2.zip").arg(m_flavour).arg(m_version);
 }
 
 QString SDCardInterface::destZipPath()
