@@ -293,16 +293,9 @@ void MainWindow::checkForUpdates()
   }
   else if (checkForUpdatesState & CHECK_SDIMAGE) {
     checkForUpdatesState -= CHECK_SDIMAGE;
-    /*
-    const QString stamp = getCurrentFirmware()->getStampUrl();
-    if (!stamp.isEmpty()) {
-      if (checkForUpdatesState & INTERACTIVE_DOWNLOAD)
-        openUpdatesWaitDialog();
-      url.setUrl(stamp);
-      connect(networkManager, &QNetworkAccessManager::finished, this, &MainWindow::checkForSDImageUpdateFinished);
-      qDebug() << "Checking for SD image update " << url.url();
-    }
-    */
+    checkForSDCardUpdate();
+    checkForUpdates();
+    return;
   }
   if (!url.isValid()) {
     checkForUpdates();
@@ -1771,6 +1764,12 @@ void MainWindow::dropEvent(QDropEvent *event)
 void MainWindow::autoClose()
 {
   this->close();
+}
+
+void checkForSDCardUpdate()
+{
+  //  TODO  version and compatibility checks
+  //
 }
 
 void MainWindow::downloadLastSDImageUpdate()

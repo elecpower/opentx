@@ -88,6 +88,7 @@ class MainWindow : public QMainWindow
 
     void checkForUpdates();
     void checkForFirmwareUpdate();
+    void checkForSDCardUpdate();
 
     void checkForCompanionUpdateFinished(QNetworkReply * reply);
     void checkForFirmwareUpdateFinished(QNetworkReply * reply);
