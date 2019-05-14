@@ -96,6 +96,7 @@ class SDCardInterface : public QObject
     QString destZipPath();
     void setLastZip(const QString & destPath);
 
+    void updateSDImage(const QString & version, bool download = true);
     bool createFolderStructure(SDImageRoots root);
     bool createCustomFolders();
     bool mergeCustomFolder();
@@ -105,6 +106,7 @@ class SDCardInterface : public QObject
     QString fileReadRecord(const QString & path);
     bool fileWriteRecord(const QString & path, const QString & data);
 
+    QObject * parent;
     QString m_fwType;
     QString m_fwId;
     int m_fwVersionId;

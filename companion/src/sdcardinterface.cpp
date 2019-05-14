@@ -25,7 +25,7 @@
 #include "helpers.h"
 #include "eeprominterface.h"
 #include "firmwareinterface.h"
-#include "process_sd_dwnld.h"
+#include "process_sdcard.h"
 #include "progresswidget.h"
 
 void SDCardInterface::SDCardInterface()
@@ -280,6 +280,32 @@ void SDCardInterface::setLastZip(const QString & destPath)
   g.profile[g.id()].sdLastZipSrcFile(sourceZipFile());
   g.profile[g.id()].sdLastZipDestFile(QFileInfo(destPath).fileName());
   g.profile[g.id()].sdLastZipFolder(QFileInfo(destPath).dir().absolutePath());
+}
+
+void SDCardInterface::updateSDImage(const QString & version, bool download)
+{
+}
+
+void SDCardInterface::downloadLastSDImage(const QString & version)
+{
+  //  skip download when testing ======================================================
+  updateDownloadedSDImage();
+  return;
+  //  ==============================================================
+  if (isInstalledCompatible()) {
+    int ret = QMessageBox::question(parent, CPN_STR_APP_NAME, tr("SD card structure appears to be current. Download latest image?"), QMessageBox::Yes | QMessageBox::No);
+    if (ret == QMessageBox::No) {
+      ret = QMessageBox::question(parent, CPN_STR_APP_NAME, tr("Reinstall previously downloaded image?"), QMessageBox::Yes | QMessageBox::No);
+      if (ret == QMessageBox::Yes) {
+        installSDImage();
+        return;
+      }
+      else {
+        return;
+      }
+    }
+  }
+  updateSDImage();
 }
 
 bool SDCardInterface::createCustomFolders()

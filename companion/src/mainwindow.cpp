@@ -1766,25 +1766,26 @@ void MainWindow::autoClose()
   this->close();
 }
 
-void checkForSDCardUpdate()
+void MainWindow::checkForSDCardUpdate()
 {
-  //  TODO  version and compatibility checks
-  //
+  if (SDCardInterface::isUpdateAvailable) {
+    int ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("A newer version of the SD card image is available (version %1)<br>"
+                                                        "Would you like to download it?").arg(CPN_SDCARD_REQ_VERSION) ,
+                                    QMessageBox::Yes | QMessageBox::No);
+    if (ret == QMessageBox::Yes) {
+      SDCardInterface::updateSDImage(CPN_SDCARD_REQ_VERSION);
+    }
+  }
 }
 
 void MainWindow::downloadLastSDImageUpdate()
 {
-  //  skip download when testing ======================================================
-  updateDownloadedSDImage();
-  return;
-  //  ==============================================================
-  SDCardInterface sd;
-  if (sd.isStructureCurrent()) {
-    int ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("SD card structure appears to be current. Download latest image?"), QMessageBox::Yes | QMessageBox::No);
+  if (SDCardInterface::isInstalledCompatible()) {
+    int ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("SD card structure appears to be current. Refresh?"), QMessageBox::Yes | QMessageBox::No);
     if (ret == QMessageBox::No) {
       ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("Reinstall previously downloaded image?"), QMessageBox::Yes | QMessageBox::No);
       if (ret == QMessageBox::Yes) {
-        updateDownloadedSDImage();
+        SDCardInterface::updateSDImage(SDCardInterface::installedVersion(), false);
         return;
       }
       else {
@@ -1792,29 +1793,6 @@ void MainWindow::downloadLastSDImageUpdate()
       }
     }
   }
-  QString url = sd.downloadZipUrl();
-
-  // QDesktopServices::openUrl(url);
-
-  QString dest = QFileDialog::getSaveFileName(this, tr("Save As"), sd.defaultDestPath(), ZIP_FILES_FILTER);
-  if (!dest.isEmpty()) {
-    qDebug() << "Downloading SD image " << url << " to " << dest;
-    sd.setLastZip(dest);
-    downloadDialog * dd = new downloadDialog(this, url, dest);
-    connect(dd, SIGNAL(accepted()), this, SLOT(updateDownloadedSDImage()));
-    dd->exec();
-  }
-}
-
-void MainWindow::updateDownloadedSDImage()
-{
-  int ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("Install SD card image?"), QMessageBox::Yes | QMessageBox::No);
-  if (ret == QMessageBox::No)
-    return;
-
-  ProgressDialog progressDialog(this, tr("Install SD card image"), CompanionIcon("save.png"));
-  bool result = ProcessSDDownload::installSDImage(progressDialog.progress());
-  if (!result && !progressDialog.isEmpty())
-    progressDialog.exec();
+  SDCardInterface::updateSDImage(CPN_SDCARD_REQ_VERSION);
 }
 

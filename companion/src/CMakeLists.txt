@@ -251,7 +251,7 @@ set(companion_SRCS
   styleeditdialog.cpp
   dialogs/filesyncdialog.cpp         # TODO move to own lib with other dialogs
   sdcardinterface.cpp
-  process_sd_dwnld.cpp
+  process_sdcard.cpp
   )
 
 set(companion_MOC_HDRS
@@ -287,7 +287,7 @@ set(companion_MOC_HDRS
   helpers_html.h
   dialogs/filesyncdialog.h
   sdcardinterface.h
-  process_sd_dwnld.h
+  process_sdcard.h
   )
 
 set(companion_UIS

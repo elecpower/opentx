@@ -61,7 +61,6 @@ class MainWindow : public QMainWindow
     void downloadLastFirmwareUpdate();
     void startFirmwareDownload();
     void downloadLastSDImageUpdate();
-    void updateDownloadedSDImage();
     virtual void closeEvent(QCloseEvent *event);
     virtual void changeEvent(QEvent *e);
     virtual void dragEnterEvent(QDragEnterEvent *event);
