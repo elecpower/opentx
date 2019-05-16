@@ -32,17 +32,20 @@ void SDCardInterface::SDCardInterface()
 {
 }
 
-int SDCardInterface::versionToIndex(const QString & vers)
+int SDCardInterface::versionToIndex(const QString & version)
 {
   int result = 0;
+  QString str = version;
   QStringList parts;
 
-  if (vers.contains("V")) {
-    parts = str.split("V");
+  //  format eg 2.2V0018
+  if (str.contains(QLatin1Char('V'))) {
+    parts = str.split(QLatin1Char('V'));
     result = parts[1].toInt();
+    str = str.mid(0, str.indexOf(QLatin1Char('V')));
   }
-  if (parts[0].contains(".")) {
-    parts = parts[0].split(".");
+  if (str.contains(".")) {
+    parts = str.split(".");
     result += parts[1].toInt() * 10000;
     result += parts[0].toInt() * 1000000;
   }
