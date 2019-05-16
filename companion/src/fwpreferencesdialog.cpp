@@ -23,6 +23,7 @@
 #include "mainwindow.h"
 #include "helpers.h"
 #include "appdata.h"
+#include "sdcardinterface"
 
 FirmwarePreferencesDialog::FirmwarePreferencesDialog(QWidget * parent) :
   QDialog(parent),
@@ -72,9 +73,31 @@ void FirmwarePreferencesDialog::on_fw_dnld_clicked()
     mw->downloadLastFirmwareUpdate();
 }
 
-void FirmwarePreferencesDialog::on_sd_dnld_clicked()
+void FirmwarePreferencesDialog::on_checkSDUpdates_clicked)
 {
   MainWindow * mw = qobject_cast<MainWindow *>(this->parent());
   if (mw)
-    mw->downloadLastSDImageUpdate();
+    mw->checkForSDCardUpdate();
+}
+
+void FirmwarePreferencesDialog::on_sd_dnld_clicked()
+{
+  SDCardInterface sd;
+  if (sd.isCurrent()) {
+    int ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("SD card appears to be current. Download anyway?"), QMessageBox::Yes | QMessageBox::No);
+    if ((ret == QMessageBox::No) {
+      return();
+    }
+    if (sd.lastZipExists()) {
+      ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("Previously downloaded image found. Reuse it?"), QMessageBox::Yes | QMessageBox::No);
+      if (ret == QMessageBox::Yes) {
+        sd.updateSDImage();
+        return;
+      }
+    }
+  }
+
+  MainWindow * mw = qobject_cast<MainWindow *>(this->parent());
+  if (mw) {
+    mw->downloadLastSDUpdate();
 }

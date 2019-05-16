@@ -94,34 +94,9 @@ void ProcessSDCard::onTimer()
   emit finished();
 }
 
-void ProcessSDCard::downloadSDImage()
-{
-  QString url = sd.downloadZipUrl();
-  QString dest = QFileDialog::getSaveFileName(this, tr("Save As"), sd.defaultDestPath(), ZIP_FILES_FILTER);
-  if (!dest.isEmpty()) {
-    qDebug() << "Downloading SD image " << url << " to " << dest;
-    sd.setLastZip(dest);
-    downloadDialog * dd = new downloadDialog(this, url, dest);
-    connect(dd, SIGNAL(accepted()), this, SLOT(updateDownloadedSDImage()));
-    dd->exec();
-  }
-}
-
-void ProcessSDCard::updateDownloadedSDImage()   //  TODO merge with download
-{
-  int ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("Install SD card image?"), QMessageBox::Yes | QMessageBox::No);
-  if (ret == QMessageBox::No)
-    return;
-
-  ProgressDialog progressDialog(this, tr("Install SD card image"), CompanionIcon("save.png"));
-  bool result = ProcessSDDownload::installSDImage(progressDialog.progress());
-  if (!result && !progressDialog.isEmpty())
-    progressDialog.exec();
-}
-
 bool ProcessSDCard::installSDImage(ProgressWidget * progress)
 {
-  QString zipfile = g.lastSDDir() + "/" + g.profile[g.id()].sdZipDestFile();
+  QString zipfile = lastZipFilePath();
   QString unzipPath = zipfile;
   unzipPath.replace(".zip", "");
   if (!unzip(zipfile, unzipPath)) {

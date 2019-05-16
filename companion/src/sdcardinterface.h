@@ -26,7 +26,7 @@
 #include <QObject>
 #include <QString>
 
-#define CPN_SDCARD_FLAVOUR_FILE         QStringLiteral("opentx.sdcard.flavour")
+#define CPN_SDCARD_FAMILY_FILE         QStringLiteral("opentx.sdcard.family")
 #define CPN_SDCARD_VERS_FILE           QStringLiteral("opentx.sdcard.version")
 #define CPN_SDCARD_REQ_VERSION         QStringLiteral(SDCARD_VERSION)
 
@@ -65,15 +65,18 @@ class SDCardInterface : public QObject
     };
 
     void SDCardInterface();
-    int reqSDVersionToIndex(const QString & version);
+
+    int versionToIndex(const QString & version);
+    QString indexToVersion(const int index);
+
     QString getIdFromType(const QString & type);
-    QString getFlavourFromId(const QString & id);
-    QString getFlavourFromType(const QString & type);
+    QString getFamilyFromId(const QString & id);
+    QString getFamilyFromType(const QString & type);
 
     void setCurrentFirmware(const QString & version, const QString & type, const QString & reqSDVersion);
 
     QString profileFirmwareId();
-    QString firmwareFlavour();
+    QString firmwareFamily();
     QString firmwareVersion();
     QString firmwareReqSDVersion();
 
@@ -81,22 +84,24 @@ class SDCardInterface : public QObject
     QString rootPath(SDImageRoots root);
     QString folderPath(SDFolders folder, SDImageRoots root);
 
-    bool isFlavourCurrent(const QString & flavour);
+    bool isFamilyCurrent(const QString & family);
     bool isVersionCurrent(const QString & version);
-    bool isCurrent(const QString & flavour, const QString & version);
-    QString installedFlavour();
+    bool isCurrent(const QString & family, const QString & version);
+    QString installedFamily();
     QString installedVersion();
     bool isInstalledCompatible():
     bool isUpdateAvailable();
 
-    void setCurrent(const QString & flavour, const QString & version);
+    void setCurrent(const QString & family, const QString & version);
 
-    QString downloadZipUrl();
+    QString downloadZipUrl(const QString & version = CPN_SDCARD_REQ_VERSION);
     QString sourceZipFile();
-    QString destZipPath();
+    QString defaultDestZipPath();
     void setLastZip(const QString & destPath);
+    QString lastZipFilePath();
+    bool lastZipFileExists();
 
-    void updateSDImage(const QString & version, bool download = true);
+    void updateSDImage();
     bool createFolderStructure(SDImageRoots root);
     bool createCustomFolders();
     bool mergeCustomFolder();
@@ -110,10 +115,10 @@ class SDCardInterface : public QObject
     QString m_fwType;
     QString m_fwId;
     int m_fwVersionId;
-    QString fwFlavour;
+    QString fwFamily;
     QString m_fwReqSDVersion;
     int m_fwReqSDVersionId;
-    QString m_flavour;
+    QString m_Family;
     QString m_version;
     int m_versionId;
 };

@@ -51,7 +51,6 @@ class MainWindow : public QMainWindow
     void firmwareDownloadCompleted();
     void firmwareChanged();
     void startSync();
-    void sdcardDownloadCompleted();
 
   protected:
     QString getCompanionUpdateBaseUrl() const;
@@ -60,7 +59,6 @@ class MainWindow : public QMainWindow
   protected slots:
     void downloadLastFirmwareUpdate();
     void startFirmwareDownload();
-    void downloadLastSDImageUpdate();
     virtual void closeEvent(QCloseEvent *event);
     virtual void changeEvent(QEvent *e);
     virtual void dragEnterEvent(QDragEnterEvent *event);
@@ -97,6 +95,7 @@ class MainWindow : public QMainWindow
     void doUpdates();
     void updateDownloaded();
     void firmwareDownloadAccepted();
+    void downloadLastSDUpdate();
     void newFile();
     void openFile();
     void save();

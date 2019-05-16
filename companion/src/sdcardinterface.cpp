@@ -32,7 +32,7 @@ void SDCardInterface::SDCardInterface()
 {
 }
 
-int SDCardInterface::reqSDVersionToIndex(const QString & vers)
+int SDCardInterface::versionToIndex(const QString & vers)
 {
   int result = 0;
   QStringList parts;
@@ -43,11 +43,23 @@ int SDCardInterface::reqSDVersionToIndex(const QString & vers)
   }
   if (parts[0].contains(".")) {
     parts = parts[0].split(".");
-    result += parts[1].toInt() * 1000;
-    result += parts[0].toInt() * 100000;
+    result += parts[1].toInt() * 10000;
+    result += parts[0].toInt() * 1000000;
   }
   return result;
 }
+
+QString indexToVersion(const int index)
+{
+  int idx = index;
+  int revision = idx % 10000;
+  idx /= 10000;
+  int minor = idx % 100;
+  int major = idx / 100;
+  //  format eg 2.2V0018
+  return QString("%1.%2V%3").arg(major).arg(minor).arg(revision, 4, 10, QLatin1Char('0'));
+}
+
 
 QString SDCardInterface::getIdFromType(const QString & type)
 {
@@ -58,28 +70,28 @@ QString SDCardInterface::getIdFromType(const QString & type)
     return "";
 }
 
-QString SDCardInterface::getFlavourFromId(const QString & id)
+QString SDCardInterface::getFamilyFromId(const QString & id)
 {
-  QString flavour = "";
+  QString family = "";
 
   if (id == "opentx-x7" || id == "opentx-xlite" || id == "opentx-xlites")
-      flavour = "taranis-x7";
+      family = "taranis-x7";
   else if (id == "opentx-x9d" || id == "opentx-x9d+" || id == "opentx-x9e")
-      flavour = "taranis-x9";
+      family = "taranis-x9";
   else if (id == "opentx-x10" || id == "opentx-x12s")
-      flavour = "horus";
+      family = "horus";
   else if (id == "opentx-9xrpro" || id == "opentx-ar9x" || id == "opentx-sky9x")
-      flavour = "9xarm";
+      family = "9xarm";
 
-  if (flavour.isEmpty())
-    qDebug() << "Error - No flavour defined for firmware id:" << id;
+  if (family.isEmpty())
+    qDebug() << "Error - No family defined for firmware id:" << id;
 
-  return flavour;
+  return family;
 }
 
-QString SDCardInterface::getFlavourFromType(const QString & type)
+QString SDCardInterface::getFamilyFromType(const QString & type)
 {
-  return getFlavourFromId(getIdFromType(type));
+  return getFamilyFromId(getIdFromType(type));
 }
 
 void SDCardInterface::setCurrentFirmware(const QString & version, const QString & type, const QString & reqSDVersion)
@@ -88,9 +100,9 @@ void SDCardInterface::setCurrentFirmware(const QString & version, const QString 
   m_fwVersionId = version2index(m_fwVersionId);
   m_fwType = type;
   m_fwId = getIdFromType(type);
-  m_fwFlavour = getFlavourFromId(m_fwId);
+  m_fwFamily = getFamilyFromId(m_fwId);
   m_fwReqSDVersion = reqSDVersion;
-  m_fwReqSDVersionId = reqSDVersionToIndex(m_fwReqSDVersion);
+  m_fwReqSDVersionId = versionToIndex(m_fwReqSDVersion);
 }
 
 QString SDCardInterface::profileFirmwareType()
@@ -207,9 +219,9 @@ bool SDCardInterface::hasRootPath(SDImageRoots root)
   return rootPath(root).isEmpty() ? false : true;
 }
 
-QString SDCardInterface::installedFlavour()
+QString SDCardInterface::installedFamily()
 {
-  return readFileRecord(rootPath(SD_IMAGE_ROOT_STD) % "/" % CPN_SDCARD_FLAVOUR_FILE);
+  return readFileRecord(rootPath(SD_IMAGE_ROOT_STD) % "/" % CPN_SDCARD_FAMILY_FILE);
 }
 
 QString SDCardInterface::installedVersion()
@@ -217,14 +229,14 @@ QString SDCardInterface::installedVersion()
   return readFileRecord(rootPath(SD_IMAGE_ROOT_STD) % "/" % CPN_SDCARD_VERS_FILE);
 }
 
-bool SDCardInterface::isInstalledCompatible(const QString & flavour, const QString & version)
+bool SDCardInterface::isInstalledCompatible(const QString & family, const QString & version)
 {
-  return (installedFlavour() == flavour) && (installedVersion() == version);
+  return (installedFamily() == family) && (installedVersion() == version);
 }
 
-bool SDCardInterface::isFlavourCurrent(const QString & flavour)
+bool SDCardInterface::isFamilyCurrent(const QString & family)
 {
-  return flavour == m_fwFlavour;
+  return family == m_fwFamily;
 }
 
 bool SDCardInterface::isVersionCurrent(const QString & version)
@@ -232,24 +244,24 @@ bool SDCardInterface::isVersionCurrent(const QString & version)
   return version == CPN_SDCARD_REQ_VERSION;
 }
 
-bool SDCardInterface::isCurrent(const QString & flavour, const QString & version)
+bool SDCardInterface::isCurrent(const QString & family, const QString & version)
 {
-  return (isFlavourCurrent(flavour) && isVersionCurrent(version));
+  return (isFamilyCurrent(family) && isVersionCurrent(version));
 }
 
 bool SDCardInterface::isUpdateAvailable()
 {
-  return reqSDVersionToIndex(installedVersion() < reqSDVersionToIndex(CPN_SDCARD_REQ_VERSION);
+  return versionToIndex(installedVersion() < versionToIndex(CPN_SDCARD_REQ_VERSION);
 }
 
-void SDCardInterface::setCurrent(const QString & flavour, const QString & version)
+void SDCardInterface::setCurrent(const QString & family, const QString & version)
 {
-  m_flavour = flavour;
+  m_Family = family;
   m_version = version;
-  m_versionId = reqSDVersionToIndex(m_version);
+  m_versionId = versionToIndex(m_version);
 }
 
-QString SDCardInterface::downloadZipUrl()
+QString SDCardInterface::downloadZipUrl(const QString & version)
 {
   QString url = g.openTxCurrentDownloadBranchSDCardUrl() % "/");
 
@@ -266,12 +278,7 @@ QString SDCardInterface::downloadZipUrl()
 
 QString SDCardInterface::sourceZipFile()
 {
-  return QString("sdcard-%1-%2.zip").arg(m_flavour).arg(m_version);
-}
-
-QString SDCardInterface::destZipPath()
-{
-  return g.profile[g.id()].sdLastZipFolder() % "/" % sourceZipFile();
+  return QString("sdcard-%1-%2.zip").arg(m_Family).arg(m_Version);
 }
 
 void SDCardInterface::setLastZip(const QString & destPath)
@@ -282,30 +289,27 @@ void SDCardInterface::setLastZip(const QString & destPath)
   g.profile[g.id()].sdLastZipFolder(QFileInfo(destPath).dir().absolutePath());
 }
 
-void SDCardInterface::updateSDImage(const QString & version, bool download)
+QString SDCardInterface::defaultDestZipPath()
 {
+  return g.profile[g.id()].sdLastZipFolder() % "/" % sourceZipFile();
 }
 
-void SDCardInterface::downloadLastSDImage(const QString & version)
+QString SDCardInterface::lastZipFilePath()
 {
-  //  skip download when testing ======================================================
-  updateDownloadedSDImage();
-  return;
-  //  ==============================================================
-  if (isInstalledCompatible()) {
-    int ret = QMessageBox::question(parent, CPN_STR_APP_NAME, tr("SD card structure appears to be current. Download latest image?"), QMessageBox::Yes | QMessageBox::No);
-    if (ret == QMessageBox::No) {
-      ret = QMessageBox::question(parent, CPN_STR_APP_NAME, tr("Reinstall previously downloaded image?"), QMessageBox::Yes | QMessageBox::No);
-      if (ret == QMessageBox::Yes) {
-        installSDImage();
-        return;
-      }
-      else {
-        return;
-      }
-    }
-  }
-  updateSDImage();
+  return g.profile[g.id()].sdLastZipFolder % "/" % g.profile[g.id()].sdLastZipDestFile();
+}
+
+bool SDCardInterface::lastZipFileExists()
+{
+  return QFile(lastZipFilePath()).exists();
+}
+
+void SDCardInterface::updateSDImage()
+{
+  ProgressDialog progressDialog(this, tr("Install SD card image"), CompanionIcon("save.png"));
+  bool result = installSDImage(progressDialog.progress());
+  if (!result && !progressDialog.isEmpty())
+    progressDialog.exec();
 }
 
 bool SDCardInterface::createCustomFolders()
@@ -316,7 +320,7 @@ bool SDCardInterface::createCustomFolders()
 bool SDCardInterface::createFolderStructure(SDImageRoots root)
 {
   QString path;
-  for (int x = 0; x < SD_ENUM_COUNT; x++) {
+  for (int x=0; x<SD_ENUM_COUNT; x++) {
     path = folderPath(root, x);
     if (!QDir(path).exists() {
       if(!QDir().mkpath(path))) {
@@ -338,10 +342,10 @@ bool SDCardInterface::mergeCustomFolder()
   return true;
 }
 
-void SDCardInterface::writeFlavourFile()
+void SDCardInterface::writeFamilyFile()
 {
-  if (!fileWriteFile(rootPath(SD_IMAGE_ROOT_STD) % "/" % CPN_SDCARD_FLAVOUR_FILE, m_fwFlavour))
-    qDebug() << "Error - failed to write SD Flavour file";
+  if (!fileWriteFile(rootPath(SD_IMAGE_ROOT_STD) % "/" % CPN_SDCARD_FAMILY_FILE, m_fwFamily))
+    qDebug() << "Error - failed to write SD Family file";
 }
 
 QString SDCardInterface::fileReadRecord(const QString & path)
