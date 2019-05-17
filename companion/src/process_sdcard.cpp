@@ -31,18 +31,15 @@
 #include "miniz.c"
 #undef MINIZ_HEADER_FILE_ONLY
 
-ProcessSDCard::ProcessSDCard(const QString &source, const QString &destination, ProgressWidget *progress):
-progress(progress),
-source(source),
-destination(destination),
-result(true)
+ProcessSDCard::ProcessSDCard(ProgressWidget *progress):
+  progress(progress),
+  result(true)
 {
 }
 
 bool ProcessSDCard::run()
 {
   progress->lock(true);
-  // progress->setInfo(tr("Copying file..."));
 
   QEventLoop loop;
   connect(this, SIGNAL(finished()), &loop, SLOT(quit()));
@@ -136,6 +133,8 @@ bool ProcessSDCard::installSDImage(ProgressWidget * progress)
   }
 
   //  TODO  Prompt to merge custom folder if one defined
+
+  //  ToDO  Prompt to sync with radio
 
   return true;
 }

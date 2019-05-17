@@ -23,7 +23,6 @@
 
 #include <QObject>
 #include <QString>
-#include <QStringList>
 
 class ProgressWidget;
 
@@ -32,7 +31,7 @@ class ProcessSDCard : public QObject
   Q_OBJECT
 
 public:
-  ProcessSDCard(const QString &source, const QString &destination, ProgressWidget *progress);
+  ProcessSDCard(ProgressWidget *progress);
   bool run();
 
 signals:
