@@ -293,6 +293,7 @@ void MainWindow::checkForUpdates()
   }
   else if (checkForUpdatesState & CHECK_SDIMAGE) {
     checkForUpdatesState -= CHECK_SDIMAGE;
+    qDebug() << "Checking for SD card update";
     checkForSDCardUpdate();
     checkForUpdates();
     return;

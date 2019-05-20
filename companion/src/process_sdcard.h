@@ -26,12 +26,12 @@
 
 class ProgressWidget;
 
-class ProcessSDCard : public QObject
+class SDCardProcess : public QObject
 {
   Q_OBJECT
 
 public:
-  ProcessSDCard(ProgressWidget *progress);
+  SDCardProcess(ProgressWidget *progress);
   bool run();
 
 signals:

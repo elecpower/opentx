@@ -31,13 +31,13 @@
 #include "miniz.c"
 #undef MINIZ_HEADER_FILE_ONLY
 
-ProcessSDCard::ProcessSDCard(ProgressWidget *progress):
+SDCardProcess::SDCardProcess(ProgressWidget *progress):
   progress(progress),
   result(true)
 {
 }
 
-bool ProcessSDCard::run()
+bool SDCardProcess::run()
 {
   progress->lock(true);
 
@@ -49,7 +49,7 @@ bool ProcessSDCard::run()
   return result;
 }
 
-void ProcessSDCard::onTimer()
+void SDCardProcess::onTimer()
 {
   char buf[BLKSIZE];
 
@@ -91,7 +91,7 @@ void ProcessSDCard::onTimer()
   emit finished();
 }
 
-bool ProcessSDCard::installSDImage(ProgressWidget * progress)
+bool SDCardProcess::installSDImage(ProgressWidget * progress)
 {
   QString zipfile = lastZipFilePath();
   QString unzipPath = zipfile;
@@ -139,7 +139,7 @@ bool ProcessSDCard::installSDImage(ProgressWidget * progress)
   return true;
 }
 
-bool ProcessSDCard::unzip(const QString & file, const QString & path)
+bool SDCardProcess::unzip(const QString & file, const QString & path)
 {
   mz_zip_archive zip_archive;
   memset(&zip_archive, 0, sizeof(zip_archive));
@@ -204,7 +204,7 @@ bool ProcessSDCard::unzip(const QString & file, const QString & path)
   return true;
 }
 
-bool ProcessSDCard::copyRecursively(const QString & srcFilePath, const QString & destFilePath)
+bool SDCardProcess::copyRecursively(const QString & srcFilePath, const QString & destFilePath)
 {
   QFileInfo srcFileInfo(srcFilePath);
   if (srcFileInfo.isDir()) {

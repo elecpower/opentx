@@ -310,9 +310,8 @@ bool SDCardInterface::lastZipFileExists()
 void SDCardInterface::updateSDImage()
 {
   ProgressDialog progressDialog(this, tr("Install SD card image"), CompanionIcon("save.png"));
-  bool result = ProcessSDCard::installSDImage(progressDialog.progress());
-  if (!result && !progressDialog.isEmpty())
-    progressDialog.exec();
+  SDCardProcess sdcardProcess(progressDialog.progress());
+  sdcardProcess.run();
 }
 
 bool SDCardInterface::createCustomFolders()
