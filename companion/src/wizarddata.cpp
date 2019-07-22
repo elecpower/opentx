@@ -49,17 +49,16 @@ WizMix::WizMix(Firmware * firmware, const GeneralSettings & settings, unsigned i
   strncpy(name, originalModelData.name, sizeof(name)-1);
 }
 
-void WizMix::maxMixSwitch(char *name, MixData &mix, int channel, int sw, int weight)
+void WizMix::maxMixSwitch(QString & name, MixData & mix, int channel, int sw, int weight)
 {
-  memset(mix.name, 0, sizeof(mix.name));
-  strncpy(mix.name, name, sizeof(mix.name)-1);
+  mix.name = name;
   mix.destCh = channel;
   mix.srcRaw = RawSource(SOURCE_TYPE_MAX);
   mix.swtch  = RawSwitch(SWITCH_TYPE_SWITCH, sw);
   mix.weight = weight;
 }
 
-void WizMix::addMix(ModelData &model, Input input, int weight, int channel, int & mixIndex)
+void WizMix::addMix(ModelData & model, Input input, int weight, int channel, int & mixIndex)
 {
   if (input != NO_INPUT)  {
     if (input >= RUDDER_INPUT && input <= AILERONS_INPUT) {
@@ -77,13 +76,13 @@ void WizMix::addMix(ModelData &model, Input input, int weight, int channel, int 
     }
     else if (input==FLAPS_INPUT){
       // There ought to be some kind of constants for switches somewhere...
-      maxMixSwitch((char *)"Flaps Up", model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? -SWITCH_ELE : SWITCH_SA0, weight); //Taranis-Horus SA-UP, 9X ELE-UP
-      maxMixSwitch((char *)"Flaps Dn", model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? SWITCH_ELE : SWITCH_SA2, -weight); //Taranis-Horus SA-DOWN, 9X ELE-DOWN
+      maxMixSwitch(tr("Flaps Up"), model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? -SWITCH_ELE : SWITCH_SA0, weight); //Taranis-Horus SA-UP, 9X ELE-UP
+      maxMixSwitch(tr("Flaps Dn"), model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? SWITCH_ELE : SWITCH_SA2, -weight); //Taranis-Horus SA-DOWN, 9X ELE-DOWN
 
     }
     else if (input==AIRBRAKES_INPUT){
-      maxMixSwitch((char *)"AirbkOff", model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? -SWITCH_RUD : SWITCH_SE0, -weight); //Taranis-Horus SE-UP, 9X RUD-UP
-      maxMixSwitch((char *)"AirbkOn",  model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? SWITCH_RUD : SWITCH_SE2, weight); //Tatanis-Horus SE-DOWN, 9X RUD-DOWN
+      maxMixSwitch(tr("AirbkOff"), model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? -SWITCH_RUD : SWITCH_SE0, -weight); //Taranis-Horus SE-UP, 9X RUD-UP
+      maxMixSwitch(tr("AirbkOn"),  model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? SWITCH_RUD : SWITCH_SE2, weight); //Tatanis-Horus SE-DOWN, 9X RUD-DOWN
     }
   }
 }
@@ -101,9 +100,7 @@ WizMix::operator ModelData()
   int mixIndex = 0;
   int timerIndex = 0;
 
-  // Safe copy model name
-  memset(model.name, 0, sizeof(model.name));
-  strncpy(model.name, name, sizeof(model.name)-1);
+  model.name = name;
 
   // Add the channel mixes
   for (int i=0; i<WIZ_MAX_CHANNELS; i++ )
@@ -116,7 +113,6 @@ WizMix::operator ModelData()
     if (ch.input1 == THROTTLE_INPUT || ch.input2 == THROTTLE_INPUT) {
       throttleChannel++;
       if (options[THROTTLE_CUT_OPTION]) {
-        // Add the Throttle Cut option
         MixData & mix = model.mixData[mixIndex++];
         mix.destCh = i+1;
         mix.srcRaw = SOURCE_TYPE_MAX;
@@ -124,29 +120,54 @@ WizMix::operator ModelData()
         mix.swtch.type = SWITCH_TYPE_SWITCH;
         mix.swtch.index = IS_SKY9X(getCurrentBoard()) ? SWITCH_THR : SWITCH_SF0;
         mix.mltpx = MLTPX_REP;
-        memset(mix.name, 0, sizeof(mix.name));
-        strncpy(mix.name, "Cut", MIXDATA_NAME_LEN);
+        mix.name, tr("Cut");
       }
     }
   }
 
-  // Add the Flight Timer option
-  if (options[FLIGHT_TIMER_OPTION] && throttleChannel >= 0){
-    memset(model.timers[timerIndex].name, 0, sizeof(model.timers[timerIndex].name));
-    strncpy(model.timers[timerIndex].name, "Flt", sizeof(model.timers[timerIndex].name)-1);
-    model.timers[timerIndex].mode.type = SWITCH_TYPE_TIMER_MODE;
-    model.timers[timerIndex].mode.index = TMRMODE_THR_TRG;
-    timerIndex++;
-  }
+  if (throttleChannel >= 0) {
+    if (options[FLIGHT_TIMER_OPTION] {
+      model.timers[timerIndex].name = tr("Flt");
+      model.timers[timerIndex].mode.type = SWITCH_TYPE_TIMER_MODE;
+      model.timers[timerIndex].mode.index = TMRMODE_THR_TRG;
+      timerIndex++;
+    }
 
-  // Add the Throttle Timer option
-  if (options[THROTTLE_TIMER_OPTION] && throttleChannel >= 0){
-    memset(model.timers[timerIndex].name, 0, sizeof(model.timers[timerIndex].name));
-    strncpy(model.timers[timerIndex].name, "Thr", sizeof(model.timers[timerIndex].name)-1);
-    model.timers[timerIndex].mode.type = SWITCH_TYPE_TIMER_MODE;
-    model.timers[timerIndex].mode.index = TMRMODE_THR;
-    timerIndex++;
+    if (options[THROTTLE_TIMER_OPTION] {
+      model.timers[timerIndex].name = tr("Thr");
+      model.timers[timerIndex].mode.type = SWITCH_TYPE_TIMER_MODE;
+      model.timers[timerIndex].mode.index = TMRMODE_THR;
+      timerIndex++;
+    }
   }
 
   return model;
+}
+
+QString WizMix::vehicleName(Vehicle vehicle)
+{
+  switch (vehicle) {
+    case PLANE:
+      return tr("Plane");
+    case MULTICOPTER:
+      return tr("Multicopter");
+    case HELICOPTER:
+      return tr("Helicopter");
+    default:
+      return "---";
+  }
+}
+
+QString WizMix::optionName(Options option)
+{
+  switch (option) {
+    case THROTTLE_CUT_OPTION:
+      return tr("Throttle Cut");
+    case THROTTLE_TIMER_OPTION:
+      return tr("Throttle Timer");
+    case FLIGHT_TIMER_OPTION:
+      return tr("Flight Timer");
+    default:
+      return "---";
+  }
 }

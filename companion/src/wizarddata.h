@@ -23,10 +23,7 @@
 
 #include "eeprominterface.h"
 
-#define WIZ_MAX_CHANNELS 8
-// TODO use a constant common to the whole companion
-// TODO when in the wizard use the getCapacity(...) to know how long the name can be
-#define WIZ_MODEL_NAME_LENGTH 12
+#include <QString>
 
 enum Input {
   NO_INPUT,
@@ -45,11 +42,11 @@ enum Vehicle {
   HELICOPTER
 };
 
-#define WIZ_MAX_OPTIONS 3
 enum Options {
-  FLIGHT_TIMER_OPTION,
   THROTTLE_CUT_OPTION,
-  THROTTLE_TIMER_OPTION
+  THROTTLE_TIMER_OPTION,
+  FLIGHT_TIMER_OPTION,
+  MAX_NUM
 };
 
 enum WizardPage {
@@ -76,6 +73,7 @@ enum WizardPage {
   Page_Conclusion
 };
 
+#define WIZ_MAX_CHANNELS 8
 class Channel
 {
   public:
@@ -94,14 +92,16 @@ class WizMix
 {
   public:
     bool complete;
-    char name[WIZ_MODEL_NAME_LENGTH + 1];
+    QString name;
     unsigned int modelId;
     Firmware * firmware;
     const GeneralSettings & settings;
     const ModelData & originalModelData;
     Vehicle vehicle;
     Channel channel[WIZ_MAX_CHANNELS];
-    bool options[WIZ_MAX_OPTIONS];
+    bool options[Options::MAX_NUM];
+    QString vehicleName(Vehicle vehicle);
+    QString optionName(Options option);
 
     WizMix(Firmware * firmware, const GeneralSettings & settings, unsigned int modelId, const ModelData & modelData);
     operator ModelData();
@@ -109,7 +109,7 @@ class WizMix
   private:
     WizMix();
     void addMix(ModelData & model, Input input, int weight, int channel, int & mixerIndex);
-    void maxMixSwitch(char *name, MixData &mix, int destCh, int sw, int weight);
+    void maxMixSwitch(QString & name, MixData & mix, int destCh, int sw, int weight);
 
 };
 

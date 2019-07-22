@@ -278,6 +278,9 @@ ModelSelectionPage::ModelSelectionPage(WizardDialog *dlg, QString image, QString
   : StandardPage(Page_Models, dlg, image, title, text)
 {
   nameLineEdit = new QLineEdit;
+  QRegExp rx(CHAR_FOR_NAMES_REGEX);
+  nameLineEdit->setValidator(new QRegExpValidator(rx, this));
+  nameLineEdit->setMaxLength(firmware->getCapability(ModelName));
   planeRB = new QRadioButton(tr("Plane"));
   planeRB->setChecked(true);
   multirotorRB = new QRadioButton(tr("Multirotor"));
@@ -304,11 +307,14 @@ void ModelSelectionPage::initializePage()
 bool ModelSelectionPage::validatePage()
 {
   //Filter and insert model name in mix data
+  /*
   QString newName(nameLineEdit->text());
   newName = (newName.normalized(QString::NormalizationForm_D));
   newName = newName.replace(QRegExp("[^ A-Za-z0-9_.-,\\s]"), "");
   memset(wizDlg->mix.name, 0, sizeof(wizDlg->mix.name));
   strncpy( wizDlg->mix.name, newName.toLatin1(), sizeof(wizDlg->mix.name)-1);
+  */
+  wizDlg->mix.name = Helpers::removeAccents(nameLineEdit->text());
 
   if (multirotorRB->isChecked())
     wizDlg->mix.vehicle = MULTICOPTER;
@@ -994,6 +1000,7 @@ void ConclusionPage::initializePage()
 {
   WizardPrinter p(&wizDlg->mix);
   textLabel->setText(p.print());
+  proceedCB->setChecked(false);
   StandardPage::initializePage();
 }
 
@@ -1003,7 +1010,7 @@ bool ConclusionPage::validatePage()
   return true;
 }
 
-
+//  To Do get from switch names
 QString WizardPrinter::inputName(Input input)
 {
   switch (input) {
@@ -1024,20 +1031,6 @@ QString WizardPrinter::inputName(Input input)
   }
 }
 
-QString WizardPrinter::vehicleName(Vehicle vehicle)
-{
-  switch (vehicle) {
-    case PLANE:
-      return tr("Plane");
-    case MULTICOPTER:
-      return tr("Multicopter");
-    case HELICOPTER:
-      return tr("Helicopter");
-    default:
-      return "---";
-  }
-}
-
 WizardPrinter::WizardPrinter(WizMix *wizMix)
 {
   mix = wizMix;
@@ -1048,30 +1041,31 @@ QString WizardPrinter::printChannel( Input input1, int weight1, Input input2, in
   QString str;
   str =  QString("[%1, %2]").arg(inputName(input1)).arg(weight1);
   if ( input2 != NO_INPUT )
-    str += QString("[%1, %2]").arg(inputName(input2)).arg(weight2);
+    str.append(QString("[%1, %2]").arg(inputName(input2)).arg(weight2));
   return str;
 }
 
 QString WizardPrinter::print()
 {
-  QString str = tr("Model Name: ") + QString::fromUtf8(mix->name) + "\n";
-  str += tr("Model Type: ") + vehicleName(mix->vehicle) + "\n";
+  QString str = tr("Model Name: ") + QString::fromUtf8(mix->name) + QString("\n");
+  str.append(tr("Model Type: ") + WizMix::vehicleName(mix->vehicle) + QString("\n"));
 
-  str += tr("Options: ") + "[";
-  for (int i=0; i<WIZ_MAX_OPTIONS; i++) {
-    if (mix->options[i])
-      str += "X";
-    else
-      str += "-";
+  QString sep = "";
+  str.append(tr("Options: "));
+  for (int i=0; i<Options::MAX_NUM; i++) {
+    if (mix->options[i]) {
+      str.append(sep + WizMix::optionName((Options) i));
+      sep = "; ";
+    }
   }
-  str += QString("]") + "\n";
+  str.append(QString("\n"));
 
   for (int i=0; i<WIZ_MAX_CHANNELS; i++) {
     if (mix->channel[i].page != Page_None) {
       Channel ch = mix->channel[i];
-      str += tr("Channel %1: ").arg(i+1);
-      str += printChannel(ch.input1, ch.weight1, ch.input2, ch.weight2 );
-      str += QString("\n");
+      str.append(tr("Channel %1: ").arg(i+1));
+      str.append(printChannel(ch.input1, ch.weight1, ch.input2, ch.weight2));
+      str.append(QString("\n"));
     }
   }
   return str;

@@ -368,7 +368,6 @@ public:
 private:
   WizMix *mix;
   QString inputName( Input );
-  QString vehicleName( Vehicle );
   QString printChannel( Input, int, Input, int );
 };
 #endif // _WIZARDDIALOG_H_
