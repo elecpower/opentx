@@ -1249,7 +1249,7 @@ void MdiChild::openModelWizard(int row)
   if (row < 0 && (row = getCurrentModel()) < 0)
     return;
 
-  WizardDialog * wizard = new WizardDialog(radioData.generalSettings, row+1, radioData.models[row], this);
+  WizardDialog * wizard = new WizardDialog(firmware, radioData.generalSettings, row+1, radioData.models[row], this);
   int res = wizard->exec();
   if (res == QDialog::Accepted && wizard->mix.complete /*TODO rather test the exec() result?*/) {
     radioData.models[row] = wizard->mix;

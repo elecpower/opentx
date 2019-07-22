@@ -30,7 +30,8 @@ class WizardDialog : public QWizard
 
   public:
     WizMix mix;
-    WizardDialog(const GeneralSettings & settings, const unsigned int modelId, const ModelData & modelData, QWidget *parent = 0);
+    WizardDialog(Firmware * firmware, const GeneralSettings & settings, const unsigned int modelId, const ModelData & modelData, QWidget *parent = nullptr);
+    Firmware * firmware;
     const GeneralSettings & settings;
 
   private slots:

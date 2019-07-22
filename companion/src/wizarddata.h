@@ -96,13 +96,14 @@ class WizMix
     bool complete;
     char name[WIZ_MODEL_NAME_LENGTH + 1];
     unsigned int modelId;
+    Firmware * firmware;
     const GeneralSettings & settings;
     const ModelData & originalModelData;
     Vehicle vehicle;
     Channel channel[WIZ_MAX_CHANNELS];
     bool options[WIZ_MAX_OPTIONS];
 
-    WizMix(const GeneralSettings & settings, unsigned int modelId, const ModelData & modelData);
+    WizMix(Firmware * firmware, const GeneralSettings & settings, unsigned int modelId, const ModelData & modelData);
     operator ModelData();
 
   private:

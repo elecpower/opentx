@@ -37,9 +37,10 @@ void Channel::clear()
   weight2 = 0;
 }
 
-WizMix::WizMix(const GeneralSettings & settings, unsigned int modelId, const ModelData & modelData):
+WizMix::WizMix(Firmware * firmware, const GeneralSettings & settings, unsigned int modelId, const ModelData & modelData):
   complete(false),
   modelId(modelId),
+  firmware(firmware),
   settings(settings),
   originalModelData(modelData),
   vehicle(NOVEHICLE)

@@ -22,9 +22,10 @@
 #include "wizarddata.h"
 #include "helpers.h"
 
-WizardDialog::WizardDialog(const GeneralSettings & settings, unsigned int modelId, const ModelData & modelData, QWidget *parent):
+WizardDialog::WizardDialog(Firmware * firmware, const GeneralSettings & settings, unsigned int modelId, const ModelData & modelData, QWidget *parent):
   QWizard(parent),
-  mix(settings, modelId, modelData),
+  mix(firmware, settings, modelId, modelData),
+  firmware(firmware),
   settings(settings)
 {
   setWindowIcon(CompanionIcon("wizard.png"));
