@@ -37,28 +37,28 @@ void Channel::clear()
   weight2 = 0;
 }
 
-WizMix::WizMix(Firmware * firmware, const GeneralSettings & settings, unsigned int modelId, const ModelData & modelData):
+WizMix::WizMix(Firmware * firmware, GeneralSettings & settings, unsigned int modelId, ModelData & modelData):
   complete(false),
-  modelId(modelId),
+  vehicle(NOVEHICLE),
   firmware(firmware),
   settings(settings),
   originalModelData(modelData),
-  vehicle(NOVEHICLE)
+  modelId(modelId)
 {
-  memset(name, 0, sizeof(name));
-  strncpy(name, originalModelData.name, sizeof(name)-1);
+  name = originalModelData.name;
 }
 
-void WizMix::maxMixSwitch(QString & name, MixData & mix, int channel, int sw, int weight)
+void WizMix::maxMixSwitch(QString name, MixData & mix, int channel, RawSwitch sw, int weight, MltpxValue mltpx)
 {
-  mix.name = name;
+  strncpy(mix.name, name.toLatin1(), sizeof(mix.name)-1);
   mix.destCh = channel;
   mix.srcRaw = RawSource(SOURCE_TYPE_MAX);
-  mix.swtch  = RawSwitch(SWITCH_TYPE_SWITCH, sw);
+  mix.swtch  = sw;
   mix.weight = weight;
+  mix.mltpx  = mltpx;
 }
 
-void WizMix::addMix(ModelData & model, Input input, int weight, int channel, int & mixIndex)
+void WizMix::addMix(ModelData & model, Input input, int weight, int channel, int & mixIndex, RawSwitch swtch)
 {
   if (input != NO_INPUT)  {
     if (input >= RUDDER_INPUT && input <= AILERONS_INPUT) {
@@ -84,6 +84,9 @@ void WizMix::addMix(ModelData & model, Input input, int weight, int channel, int
       maxMixSwitch(tr("AirbkOff"), model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? -SWITCH_RUD : SWITCH_SE0, -weight); //Taranis-Horus SE-UP, 9X RUD-UP
       maxMixSwitch(tr("AirbkOn"),  model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? SWITCH_RUD : SWITCH_SE2, weight); //Tatanis-Horus SE-DOWN, 9X RUD-DOWN
     }
+    else if (input==THROTTLE_CUT_INPUT) {
+      maxMixSwitch(tr("Cut"), model.mixData[mixIndex++], channel+1, swtch , weight, MLTPX_REP);
+    }
   }
 }
 
@@ -100,18 +103,20 @@ WizMix::operator ModelData()
   int mixIndex = 0;
   int timerIndex = 0;
 
-  model.name = name;
+  strncpy(model.name, name.toLatin1().data(), sizeof(model.name)-1);
 
   // Add the channel mixes
   for (int i=0; i<WIZ_MAX_CHANNELS; i++ )
   {
     Channel ch = channel[i];
 
-    addMix(model, ch.input1, ch.weight1, i, mixIndex);
-    addMix(model, ch.input2, ch.weight2, i, mixIndex);
+    addMix(model, ch.input1, ch.weight1, i, mixIndex, ch.switch1);
+    addMix(model, ch.input2, ch.weight2, i, mixIndex, ch.switch2);
 
     if (ch.input1 == THROTTLE_INPUT || ch.input2 == THROTTLE_INPUT) {
       throttleChannel++;
+
+      /*
       if (options[THROTTLE_CUT_OPTION]) {
         MixData & mix = model.mixData[mixIndex++];
         mix.destCh = i+1;
@@ -120,21 +125,22 @@ WizMix::operator ModelData()
         mix.swtch.type = SWITCH_TYPE_SWITCH;
         mix.swtch.index = IS_SKY9X(getCurrentBoard()) ? SWITCH_THR : SWITCH_SF0;
         mix.mltpx = MLTPX_REP;
-        mix.name, tr("Cut");
+        strncpy(mix.name, tr("Cut").toLatin1().data(), sizeof(mix.name)-1);
       }
+      */
     }
   }
 
   if (throttleChannel >= 0) {
-    if (options[FLIGHT_TIMER_OPTION] {
-      model.timers[timerIndex].name = tr("Flt");
+    if (options[FLIGHT_TIMER_OPTION]) {
+      strncpy(model.timers[timerIndex].name, tr("Flt").toLatin1().data(), sizeof(model.timers[timerIndex].name)-1);
       model.timers[timerIndex].mode.type = SWITCH_TYPE_TIMER_MODE;
       model.timers[timerIndex].mode.index = TMRMODE_THR_TRG;
       timerIndex++;
     }
 
-    if (options[THROTTLE_TIMER_OPTION] {
-      model.timers[timerIndex].name = tr("Thr");
+    if (options[THROTTLE_TIMER_OPTION]) {
+      strncpy(model.timers[timerIndex].name, tr("Thr").toLatin1().data(), sizeof(model.timers[timerIndex].name)-1);
       model.timers[timerIndex].mode.type = SWITCH_TYPE_TIMER_MODE;
       model.timers[timerIndex].mode.index = TMRMODE_THR;
       timerIndex++;
@@ -149,8 +155,8 @@ QString WizMix::vehicleName(Vehicle vehicle)
   switch (vehicle) {
     case PLANE:
       return tr("Plane");
-    case MULTICOPTER:
-      return tr("Multicopter");
+    case MULTIROTOR:
+      return tr("Multirotor");
     case HELICOPTER:
       return tr("Helicopter");
     default:
@@ -161,8 +167,6 @@ QString WizMix::vehicleName(Vehicle vehicle)
 QString WizMix::optionName(Options option)
 {
   switch (option) {
-    case THROTTLE_CUT_OPTION:
-      return tr("Throttle Cut");
     case THROTTLE_TIMER_OPTION:
       return tr("Throttle Timer");
     case FLIGHT_TIMER_OPTION:

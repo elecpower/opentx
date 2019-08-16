@@ -23,6 +23,7 @@
 
 #include "eeprominterface.h"
 
+#include <QObject>
 #include <QString>
 
 enum Input {
@@ -32,18 +33,21 @@ enum Input {
   THROTTLE_INPUT,
   AILERONS_INPUT,
   FLAPS_INPUT,
-  AIRBRAKES_INPUT
+  AIRBRAKES_INPUT,
+  THROTTLE_CUT_INPUT
 };
 
+//  To Do add extras such as trainer, glider, wing, drone, multi rotor
 enum Vehicle {
-  NOVEHICLE,
+  NOVEHICLE,  //  to do rename UNKNOWN
   PLANE,
-  MULTICOPTER,
-  HELICOPTER
+  MULTIROTOR,
+  HELICOPTER,
+  FLIGHTSIM
 };
 
+//  To Do refactor as bit mask as mutually inclusive and extras such as retracts, diff, etc
 enum Options {
-  THROTTLE_CUT_OPTION,
   THROTTLE_TIMER_OPTION,
   FLIGHT_TIMER_OPTION,
   MAX_NUM
@@ -73,44 +77,48 @@ enum WizardPage {
   Page_Conclusion
 };
 
-#define WIZ_MAX_CHANNELS 8
+#define WIZ_MAX_CHANNELS 8    //  to do user choice as could be 4, 6, 8, 16 so this is MAX Receiver
 class Channel
 {
   public:
     WizardPage page;     // Originating dialog, only of interest for producer
-    bool prebooked;     // Temporary lock variable
+    bool prebooked;      // Temporary lock variable
     Input input1;
     Input input2;
     int weight1;
     int weight2;
+    RawSwitch switch1;
+    RawSwitch switch2;
 
     Channel();
     void clear();
 };
 
-class WizMix
+class WizMix : public QObject
 {
+  Q_OBJECT
+
   public:
     bool complete;
     QString name;
-    unsigned int modelId;
-    Firmware * firmware;
-    const GeneralSettings & settings;
-    const ModelData & originalModelData;
     Vehicle vehicle;
-    Channel channel[WIZ_MAX_CHANNELS];
-    bool options[Options::MAX_NUM];
+    Channel channel[WIZ_MAX_CHANNELS];    //  for memory allocation though likely less
+    bool options[Options::MAX_NUM];       //  to do bit mask
     QString vehicleName(Vehicle vehicle);
-    QString optionName(Options option);
+    QString optionName(Options option);   //  to do bit mask
+    Firmware * firmware;
+    GeneralSettings & settings;
+    ModelData & originalModelData;
 
-    WizMix(Firmware * firmware, const GeneralSettings & settings, unsigned int modelId, const ModelData & modelData);
+    WizMix(Firmware * firmware, GeneralSettings & settings, unsigned int modelId, ModelData & modelData);
     operator ModelData();
 
   private:
     WizMix();
-    void addMix(ModelData & model, Input input, int weight, int channel, int & mixerIndex);
-    void maxMixSwitch(QString & name, MixData & mix, int destCh, int sw, int weight);
+    void addMix(ModelData & model, Input input, int weight, int channel, int & mixerIndex, RawSwitch swtch);
+    void maxMixSwitch(QString name, MixData & mix, int destCh, RawSwitch sw, int weight, MltpxValue mltpx = MLTPX_ADD);
 
+    unsigned int modelId;
 };
 
 #endif // _WIZARDDATA_H_

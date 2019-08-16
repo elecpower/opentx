@@ -21,8 +21,9 @@
 #include "wizarddialog.h"
 #include "wizarddata.h"
 #include "helpers.h"
+#include "rawitemfilteredmodel.h"
 
-WizardDialog::WizardDialog(Firmware * firmware, const GeneralSettings & settings, unsigned int modelId, const ModelData & modelData, QWidget *parent):
+WizardDialog::WizardDialog(Firmware * firmware, GeneralSettings & settings, unsigned int modelId, ModelData & modelData, QWidget * parent):
   QWizard(parent),
   mix(firmware, settings, modelId, modelData),
   firmware(firmware),
@@ -31,12 +32,14 @@ WizardDialog::WizardDialog(Firmware * firmware, const GeneralSettings & settings
   setWindowIcon(CompanionIcon("wizard.png"));
   setWindowTitle(tr("Model Wizard"));
 
-  setPage(Page_Models, new ModelSelectionPage(this, "models", tr("Model Type"), tr("Enter model name and model type.")));
-  setPage(Page_Throttle, new ThrottlePage(this, "throttle", tr("Throttle"), tr("Has your model got a motor or an engine?"), Page_Wingtypes));
+  rawSwitchItemModel = new RawSwitchFilterItemModel(&settings, &modelData, RawSwitch::MixesContext, this);
+
+  setPage(Page_Models, new ModelSelectionPage(this, "models", tr("Model Type"), tr("Enter model name and model type."), firmware));
+  setPage(Page_Throttle, new ThrottlePage(this, "throttle", tr("Throttle"), tr("Has your model got a motor or an engine?"), Page_Wingtypes, rawSwitchItemModel));
   setPage(Page_Wingtypes, new WingtypeSelectionPage(this, "wingtype", tr("Wing Type"), tr("Is your model a flying wing/deltawing or has it a standard wing configuration?")));
   setPage(Page_Ailerons, new AileronsPage(this, "ailerons", tr("Ailerons"), tr("Has your model got ailerons?"), Page_Flaps));
-  setPage(Page_Flaps, new FlapsPage(this, "flaps", tr("Flaps"), tr("Has your model got flaps?"), Page_Airbrakes));
-  setPage(Page_Airbrakes, new AirbrakesPage(this, "airbrakes", tr("Airbrakes"), tr("Has your model got airbrakes?"), Page_Tails));
+  setPage(Page_Flaps, new FlapsPage(this, "flaps", tr("Flaps"), tr("Has your model got flaps?"), Page_Airbrakes, rawSwitchItemModel));
+  setPage(Page_Airbrakes, new AirbrakesPage(this, "airbrakes", tr("Airbrakes"), tr("Has your model got airbrakes?"), Page_Tails, rawSwitchItemModel));
   setPage(Page_Elevons, new ElevonsPage(this, "elevons", tr("Flying-wing / Delta-wing"), tr("Select the elevons channels"), Page_Rudder));
   setPage(Page_Rudder, new RudderPage(this, "rudder", tr("Rudder"), tr("Does your model have a rudder?"), Page_Options));
   setPage(Page_Tails, new TailSelectionPage(this, "tails", tr("Tail Type"), tr("Select which type of tail your model is equiped with.")));
@@ -77,12 +80,15 @@ void WizardDialog::showHelp()
       break;
     case Page_Throttle:
       message = tr("Select the receiver channel that is connected to your ESC or throttle servo.<br><br>"
-                   "Throttle - Spektrum: CH1, Futaba: CH3");
+                   "Throttle - Spektrum: CH1, Futaba: CH3.<br><br>"
+                   "For electric motors, a simple throttle cut safety feature can be applied by selecting a switch and position.<br><br>"
+                   "It is strongly recommended a more sophisticated throttle safety feature is configured after your model has been created. "
+                   "Various methods are discussed in the forums.");
       break;
     case Page_Wingtypes:
       message = tr("Most aircraft have a main wing and a tail with control surfaces. Flying wings and delta winged aircraft only have a single wing. "
                    "The main control surface on a standard wing controls the roll of the aircraft. This surface is called an aileron.<br>"
-                   "The control surface of a delta wing controls both roll and pitch. This surface is called an elevon. ");
+                   "The control surface of a flying wing/delta wing controls both roll and pitch. This surface is called an elevon. ");
       break;
     case Page_Ailerons:
       message = tr("Models use one or two channels to control the ailerons.<br>"
@@ -146,10 +152,12 @@ void WizardDialog::showHelp()
                    "Roll - Spektrum: CH2, Futaba: CH1");
       break;
     case Page_Options:
-      message = tr("TBD.");
+      message = tr("Select the options for your model.");
       break;
     case Page_Conclusion:
-      message = tr("TBD.");
+      message = tr("Summary report of all the choices you have made. These will be used to create your model when Finish clicked.<br>"
+                   "It is very important that you bench check the newly created model to ensure all controls surfaces move in the correct directions<br?"
+                   " and other controls and switches affect the model as expected.");
       break;
     default:
       message = tr("There is no help available for the current page.");
@@ -158,11 +166,12 @@ void WizardDialog::showHelp()
   QMessageBox::information(this, tr("Model Wizard Help"), message);
 }
 
-StandardPage::StandardPage(WizardPage currentPage, WizardDialog *dlg, QString image, QString title, QString text, int nextPage):
+StandardPage::StandardPage(WizardPage currentPage, WizardDialog *dlg, QString image, QString title, QString text, int nextPage, RawSwitchFilterItemModel *rawSwitchItemModel):
   QWizardPage(),
   wizDlg(dlg),
   pageCurrent(currentPage),
-  pageFollower(nextPage)
+  pageFollower(nextPage),
+  rawSwitchItemModel(rawSwitchItemModel)
 {
   setTitle(title);
   setPixmap(QWizard::WatermarkPixmap, QPixmap(QString(":/images/wizard/%1.png").arg(image)));
@@ -181,7 +190,7 @@ int StandardPage::getDefaultChannel(const Input input)
 
 int StandardPage::nextFreeChannel(int channel)
 {
-  for(int i=channel;i<8; i++)
+  for(int i=channel;i<WIZ_MAX_CHANNELS; i++)
     if (wizDlg->mix.channel[i].page == Page_None)
       return i;
   return -1;
@@ -193,7 +202,6 @@ int StandardPage::totalChannelsAvailable()
   for(int i=0; i<WIZ_MAX_CHANNELS; i++)
     if (wizDlg->mix.channel[i].page == Page_None)
       c++;
-
   return c;
 }
 
@@ -226,7 +234,7 @@ void StandardPage::populateCB(QComboBox *cb, int preferred)
   wizDlg->mix.channel[channel].prebooked = true;
 }
 
-bool StandardPage::bookChannel(QComboBox * cb, Input input1, int weight1, Input input2, int weight2 )
+bool StandardPage::bookChannel(QComboBox * cb, Input input1, int weight1, Input input2, int weight2, QComboBox * switch1, QComboBox * switch2)
 {
   int channel = cb->itemData(cb->currentIndex()).toInt();
   if (channel<0 || channel>=WIZ_MAX_CHANNELS)
@@ -239,6 +247,10 @@ bool StandardPage::bookChannel(QComboBox * cb, Input input1, int weight1, Input 
   wizDlg->mix.channel[channel].input2 = input2;
   wizDlg->mix.channel[channel].weight1 = weight1;
   wizDlg->mix.channel[channel].weight2 = weight2;
+  if (switch1)
+    wizDlg->mix.channel[channel].switch1 = RawSwitch(switch1->itemData(switch1->currentIndex()).toInt());
+  if (switch2)
+    wizDlg->mix.channel[channel].switch2 = RawSwitch(switch2->itemData(switch2->currentIndex()).toInt());
 
   return true;
 }
@@ -274,13 +286,35 @@ int StandardPage::nextId() const
   return pageFollower;
 }
 
-ModelSelectionPage::ModelSelectionPage(WizardDialog *dlg, QString image, QString title, QString text)
+void StandardPage::populateSwitchCB(QComboBox * cb, bool enabled)
+{
+  if (rawSwitchItemModel) {
+    cb->setModel(rawSwitchItemModel);
+    cb->setCurrentIndex(cb->findData(RawSwitch(SWITCH_TYPE_NONE).toValue()));
+    cb->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Minimum);
+    cb->setEnabled(enabled);
+    //  workaround to allow items limit to be enforced for non-editable combo boxes
+    //  the downside is the cosmetic positioning of the currently selected item in the view portal
+    //  cb->setStyleSheet("QComboBox { combobox-popup: 0; }");
+    cb->setMaxVisibleItems(10);
+  }
+}
+
+void StandardPage::updateSwitchCB(QComboBox * cb, bool enabled)
+{
+  if (!enabled)
+    cb->setCurrentIndex(cb->findData(RawSwitch(SWITCH_TYPE_NONE).toValue()));
+  cb->setEnabled(enabled);
+}
+
+ModelSelectionPage::ModelSelectionPage(WizardDialog *dlg, QString image, QString title, QString text, Firmware *fw)
   : StandardPage(Page_Models, dlg, image, title, text)
 {
   nameLineEdit = new QLineEdit;
   QRegExp rx(CHAR_FOR_NAMES_REGEX);
   nameLineEdit->setValidator(new QRegExpValidator(rx, this));
-  nameLineEdit->setMaxLength(firmware->getCapability(ModelName));
+  nameLineEdit->setMaxLength(fw->getCapability(ModelName));
+
   planeRB = new QRadioButton(tr("Plane"));
   planeRB->setChecked(true);
   multirotorRB = new QRadioButton(tr("Multirotor"));
@@ -317,7 +351,7 @@ bool ModelSelectionPage::validatePage()
   wizDlg->mix.name = Helpers::removeAccents(nameLineEdit->text());
 
   if (multirotorRB->isChecked())
-    wizDlg->mix.vehicle = MULTICOPTER;
+    wizDlg->mix.vehicle = MULTIROTOR;
   else if (helicopterRB->isChecked())
     wizDlg->mix.vehicle = HELICOPTER;
   else
@@ -401,19 +435,23 @@ int FlybarSelectionPage::nextId() const
     return Page_Fblheli;
 }
 
-ThrottlePage::ThrottlePage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage)
-  : StandardPage(Page_Throttle, dlg, image, title, text, nextPage)
+ThrottlePage::ThrottlePage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage, RawSwitchFilterItemModel *rawSwitchItemModel)
+  : StandardPage(Page_Throttle, dlg, image, title, text, nextPage, rawSwitchItemModel)
 {
   motorRB = new QRadioButton(tr("Yes"));
   noMotorRB = new QRadioButton(tr("No"));
   motorRB->setChecked(true);
   throttleCB = new QComboBox();
+  throttleCutSwitchCB = new QComboBox();
+  populateSwitchCB(throttleCutSwitchCB);
 
   QLayout *l = layout();
   l->addWidget(motorRB);
   l->addWidget(noMotorRB);
   l->addWidget(new QLabel(tr("<br>Throttle Channel:")));
   l->addWidget(throttleCB);
+  l->addWidget(new QLabel(tr("Throttle Cut Switch:")));
+  l->addWidget(throttleCutSwitchCB);
 
   connect(motorRB, SIGNAL(toggled(bool)), this, SLOT(onMotorStateChanged(bool)));
 }
@@ -428,7 +466,7 @@ bool ThrottlePage::validatePage()
 {
   releaseBookings();
   if (motorRB->isChecked())
-    return bookChannel(throttleCB, THROTTLE_INPUT, 100);
+    return bookChannel(throttleCB, THROTTLE_INPUT, 100, THROTTLE_CUT_INPUT, -100, nullptr, throttleCutSwitchCB);
   else
     return true;
 }
@@ -436,6 +474,7 @@ bool ThrottlePage::validatePage()
 void ThrottlePage::onMotorStateChanged(bool toggled)
 {
   throttleCB->setEnabled(toggled);
+  updateSwitchCB(throttleCutSwitchCB, toggled);
 }
 
 AileronsPage::AileronsPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage)
@@ -503,8 +542,8 @@ void AileronsPage::twoAileronChannels()
   aileron2CB->setEnabled(true);
 }
 
-FlapsPage::FlapsPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage):
-  StandardPage(Page_Flaps, dlg, image, title, text, nextPage)
+FlapsPage::FlapsPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage, RawSwitchFilterItemModel *rawSwitchItemModel):
+  StandardPage(Page_Flaps, dlg, image, title, text, nextPage, rawSwitchItemModel)
 {
   noFlapsRB = new QRadioButton(tr("No"));
   oneFlapRB = new QRadioButton(tr("Yes, controlled by a single channel"));
@@ -515,6 +554,10 @@ FlapsPage::FlapsPage(WizardDialog *dlg, QString image, QString title, QString te
   flap2CB = new QComboBox();
   flap1CB->setEnabled(false);
   flap2CB->setEnabled(false);
+  flapsUpSwitchCB = new QComboBox;
+  populateSwitchCB(flapsUpSwitchCB, false);
+  flapsDownSwitchCB = new QComboBox;
+  populateSwitchCB(flapsDownSwitchCB, false);
 
   QLayout *l = layout();
   l->addWidget(noFlapsRB);
@@ -524,6 +567,10 @@ FlapsPage::FlapsPage(WizardDialog *dlg, QString image, QString title, QString te
   l->addWidget(flap1CB);
   l->addWidget(new QLabel(tr("Second Flap Channel:")));
   l->addWidget(flap2CB);
+  l->addWidget(new QLabel(tr("Flaps Up Switch:")));
+  l->addWidget(flapsUpSwitchCB);
+  l->addWidget(new QLabel(tr("Flaps Down Switch:")));
+  l->addWidget(flapsDownSwitchCB);
 
   connect(noFlapsRB, SIGNAL(toggled(bool)), this, SLOT(noFlapChannel()));
   connect(oneFlapRB, SIGNAL(toggled(bool)), this, SLOT(oneFlapChannel()));
@@ -542,33 +589,42 @@ bool FlapsPage::validatePage() {
   if (noFlapsRB->isChecked()) {
     return true;
   }
+  if (RawSwitch(flapsUpSwitchCB->itemData(flapsUpSwitchCB->currentIndex()).toInt()) == RawSwitch(SWITCH_TYPE_NONE) &&
+      RawSwitch(flapsDownSwitchCB->itemData(flapsDownSwitchCB->currentIndex()).toInt()) == RawSwitch(SWITCH_TYPE_NONE))
+    return false;
   if (oneFlapRB->isChecked()) {
-    return (bookChannel(flap1CB, FLAPS_INPUT, 100 ));
+    return (bookChannel(flap1CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpSwitchCB, flapsDownSwitchCB));
   }
-  return( bookChannel(flap1CB, FLAPS_INPUT, 100 ) &&
-    bookChannel(flap2CB, FLAPS_INPUT, 100 ));
+  return (bookChannel(flap1CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpSwitchCB, flapsDownSwitchCB) &&
+          bookChannel(flap2CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpSwitchCB, flapsDownSwitchCB)   );
 }
 
 void FlapsPage::noFlapChannel()
 {
   flap1CB->setEnabled(false);
   flap2CB->setEnabled(false);
+  updateSwitchCB(flapsUpSwitchCB, false);
+  updateSwitchCB(flapsDownSwitchCB, false);
 }
 
 void FlapsPage::oneFlapChannel()
 {
   flap1CB->setEnabled(true);
   flap2CB->setEnabled(false);
+  updateSwitchCB(flapsUpSwitchCB, true);
+  updateSwitchCB(flapsDownSwitchCB, true);
 }
 
 void FlapsPage::twoFlapChannels()
 {
   flap1CB->setEnabled(true);
   flap2CB->setEnabled(true);
+  updateSwitchCB(flapsUpSwitchCB, true);
+  updateSwitchCB(flapsDownSwitchCB, true);
 }
 
-AirbrakesPage::AirbrakesPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage):
-  StandardPage(Page_Airbrakes, dlg, image, title, text, nextPage)
+AirbrakesPage::AirbrakesPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage, RawSwitchFilterItemModel *rawSwitchItemModel):
+  StandardPage(Page_Airbrakes, dlg, image, title, text, nextPage, rawSwitchItemModel)
 {
   noAirbrakesRB = new QRadioButton(tr("No"));
   oneAirbrakeRB = new QRadioButton(tr("Yes, controlled by a single channel"));
@@ -579,6 +635,8 @@ AirbrakesPage::AirbrakesPage(WizardDialog *dlg, QString image, QString title, QS
   airbrake2CB = new QComboBox();
   airbrake1CB->setEnabled(false);
   airbrake2CB->setEnabled(false);
+  airbrakeSwitchCB = new QComboBox;
+  populateSwitchCB(airbrakeSwitchCB, false);
 
   QLayout *l = layout();
   l->addWidget(noAirbrakesRB);
@@ -588,6 +646,8 @@ AirbrakesPage::AirbrakesPage(WizardDialog *dlg, QString image, QString title, QS
   l->addWidget(airbrake1CB);
   l->addWidget(new QLabel(tr("Second Airbrake Channel:")));
   l->addWidget(airbrake2CB);
+  l->addWidget(new QLabel(tr("Airbrake Switch:")));
+  l->addWidget(airbrakeSwitchCB);
 
   connect(noAirbrakesRB, SIGNAL(toggled(bool)), this, SLOT(noAirbrakeChannel()));
   connect(oneAirbrakeRB, SIGNAL(toggled(bool)), this, SLOT(oneAirbrakeChannel()));
@@ -607,29 +667,34 @@ bool AirbrakesPage::validatePage()
   if (noAirbrakesRB->isChecked()) {
     return true;
   }
+  if (RawSwitch(airbrakeSwitchCB->itemData(airbrakeSwitchCB->currentIndex()).toInt()) == RawSwitch(SWITCH_TYPE_NONE))
+    return false;
   if (oneAirbrakeRB->isChecked()) {
-    return (bookChannel(airbrake1CB, AIRBRAKES_INPUT, 100 ));
+    return (bookChannel(airbrake1CB, AIRBRAKES_INPUT, 100, NO_INPUT, 0, airbrakeSwitchCB ));
   }
-  return( bookChannel(airbrake1CB, AIRBRAKES_INPUT, 100 ) &&
-    bookChannel(airbrake2CB, AIRBRAKES_INPUT, 100 ));
+  return(bookChannel(airbrake1CB, AIRBRAKES_INPUT, 100, NO_INPUT, 0, airbrakeSwitchCB) &&
+         bookChannel(airbrake2CB, AIRBRAKES_INPUT, 100, NO_INPUT, 0, airbrakeSwitchCB)   );
 }
 
 void AirbrakesPage::noAirbrakeChannel()
 {
   airbrake1CB->setEnabled(false);
   airbrake2CB->setEnabled(false);
+  updateSwitchCB(airbrakeSwitchCB, false);
 }
 
 void AirbrakesPage::oneAirbrakeChannel()
 {
   airbrake1CB->setEnabled(true);
   airbrake2CB->setEnabled(false);
+  updateSwitchCB(airbrakeSwitchCB, true);
 }
 
 void AirbrakesPage::twoAirbrakeChannels()
 {
   airbrake1CB->setEnabled(true);
   airbrake2CB->setEnabled(true);
+  updateSwitchCB(airbrakeSwitchCB, true);
 }
 
 ElevonsPage::ElevonsPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage):
@@ -963,12 +1028,10 @@ bool MultirotorPage::validatePage()
 OptionsPage::OptionsPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage):
   StandardPage(Page_Options, dlg, image, title, text, nextPage)
 {
-  throttleCutRB = new QCheckBox(tr("Throttle Cut"));
   throttleTimerRB = new QCheckBox(tr("Throttle Timer"));
   flightTimerRB = new QCheckBox(tr("Flight Timer"));
 
   QLayout *l = layout();
-  l->addWidget(throttleCutRB);
   l->addWidget(throttleTimerRB);
   l->addWidget(flightTimerRB);
 }
@@ -978,7 +1041,6 @@ void OptionsPage::initializePage(){
 }
 
 bool OptionsPage::validatePage(){
-  wizDlg->mix.options[THROTTLE_CUT_OPTION] = throttleCutRB->isChecked();
   wizDlg->mix.options[THROTTLE_TIMER_OPTION] = throttleTimerRB->isChecked();
   wizDlg->mix.options[FLIGHT_TIMER_OPTION] = flightTimerRB->isChecked();
   return true;
@@ -1047,14 +1109,14 @@ QString WizardPrinter::printChannel( Input input1, int weight1, Input input2, in
 
 QString WizardPrinter::print()
 {
-  QString str = tr("Model Name: ") + QString::fromUtf8(mix->name) + QString("\n");
-  str.append(tr("Model Type: ") + WizMix::vehicleName(mix->vehicle) + QString("\n"));
+  QString str = tr("Model Name: ") + mix->name.toUtf8() + QString("\n");
+  str.append(tr("Model Type: ") + mix->vehicleName(mix->vehicle) + QString("\n"));
 
   QString sep = "";
   str.append(tr("Options: "));
   for (int i=0; i<Options::MAX_NUM; i++) {
     if (mix->options[i]) {
-      str.append(sep + WizMix::optionName((Options) i));
+      str.append(sep + mix->optionName((Options) i));
       sep = "; ";
     }
   }

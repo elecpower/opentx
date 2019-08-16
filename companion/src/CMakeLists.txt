@@ -274,6 +274,7 @@ set(companion_MOC_HDRS
   mdichild.h
   mainwindow.h
   radionotfound.h
+  wizarddata.h
   wizarddialog.h
   modelprinter.h
   multimodelprinter.h
