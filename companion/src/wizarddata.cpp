@@ -85,7 +85,7 @@ void WizMix::addMix(ModelData & model, Input input, int weight, int channel, int
       maxMixSwitch(tr("AirbkOn"),  model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? SWITCH_RUD : SWITCH_SE2, weight); //Tatanis-Horus SE-DOWN, 9X RUD-DOWN
     }
     else if (input==THROTTLE_CUT_INPUT) {
-      maxMixSwitch(tr("Cut"), model.mixData[mixIndex++], channel+1, swtch , weight, MLTPX_REP);
+      maxMixSwitch(tr("Cut"), model.mixData[mixIndex++], channel+1, swtch , -100, MLTPX_REP);
     }
   }
 }

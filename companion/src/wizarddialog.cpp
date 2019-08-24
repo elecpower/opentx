@@ -341,13 +341,6 @@ void ModelSelectionPage::initializePage()
 bool ModelSelectionPage::validatePage()
 {
   //Filter and insert model name in mix data
-  /*
-  QString newName(nameLineEdit->text());
-  newName = (newName.normalized(QString::NormalizationForm_D));
-  newName = newName.replace(QRegExp("[^ A-Za-z0-9_.-,\\s]"), "");
-  memset(wizDlg->mix.name, 0, sizeof(wizDlg->mix.name));
-  strncpy( wizDlg->mix.name, newName.toLatin1(), sizeof(wizDlg->mix.name)-1);
-  */
   wizDlg->mix.name = Helpers::removeAccents(nameLineEdit->text());
 
   if (multirotorRB->isChecked())
@@ -591,6 +584,8 @@ bool FlapsPage::validatePage() {
   }
   if (RawSwitch(flapsUpSwitchCB->itemData(flapsUpSwitchCB->currentIndex()).toInt()) == RawSwitch(SWITCH_TYPE_NONE) &&
       RawSwitch(flapsDownSwitchCB->itemData(flapsDownSwitchCB->currentIndex()).toInt()) == RawSwitch(SWITCH_TYPE_NONE))
+    return false;
+  if (flapsUpSwitchCB->currentIndex() == flapsDownSwitchCB->currentIndex())
     return false;
   if (oneFlapRB->isChecked()) {
     return (bookChannel(flap1CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpSwitchCB, flapsDownSwitchCB));
