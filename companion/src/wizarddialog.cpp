@@ -478,6 +478,8 @@ AileronsPage::AileronsPage(WizardDialog *dlg, QString image, QString title, QStr
   twoAileronsRB = new QRadioButton(tr("Yes, controlled by two channels"));
   noAileronsRB->setChecked(true);
 
+  aileron1L = new QLabel(tr("Aileron Channel:"));
+  aileron2L = new QLabel(aileron1L->text());
   aileron1CB = new QComboBox();
   aileron2CB = new QComboBox();
   aileron1CB->setEnabled(false);
@@ -487,9 +489,10 @@ AileronsPage::AileronsPage(WizardDialog *dlg, QString image, QString title, QStr
   l->addWidget(noAileronsRB);
   l->addWidget(oneAileronRB);
   l->addWidget(twoAileronsRB);
-  l->addWidget(new QLabel(tr("<br>First Aileron Channel:")));
+  l->addWidget(new QLabel());   //   spacer
+  l->addWidget(aileron1L);
   l->addWidget(aileron1CB);
-  l->addWidget(new QLabel(tr("Second Aileron Channel:")));
+  l->addWidget(aileron2L);
   l->addWidget(aileron2CB);
 
   connect(noAileronsRB, SIGNAL(toggled(bool)), this, SLOT(noAileronChannel()));
@@ -519,19 +522,25 @@ bool AileronsPage::validatePage()
 
 void AileronsPage::noAileronChannel()
 {
+  aileron1L->setText(tr("Aileron Channel:"));
   aileron1CB->setEnabled(false);
+  aileron2L->setText(aileron1L->text());
   aileron2CB->setEnabled(false);
 }
 
 void AileronsPage::oneAileronChannel()
 {
+  aileron1L->setText(tr("Aileron Channel:"));
   aileron1CB->setEnabled(true);
+  aileron2L->setText(aileron1L->text());
   aileron2CB->setEnabled(false);
 }
 
 void AileronsPage::twoAileronChannels()
 {
+  aileron1L->setText(tr("Left Aileron Channel:"));
   aileron1CB->setEnabled(true);
+  aileron2L->setText(tr("Right Aileron Channel:"));
   aileron2CB->setEnabled(true);
 }
 
@@ -543,6 +552,8 @@ FlapsPage::FlapsPage(WizardDialog *dlg, QString image, QString title, QString te
   twoFlapsRB = new QRadioButton(tr("Yes, controlled by two channels"));
   noFlapsRB->setChecked(true);
 
+  flap1L = new QLabel(tr("Flap Channel:"));
+  flap2L = new QLabel(flap1L->text());
   flap1CB = new QComboBox();
   flap2CB = new QComboBox();
   flap1CB->setEnabled(false);
@@ -556,9 +567,10 @@ FlapsPage::FlapsPage(WizardDialog *dlg, QString image, QString title, QString te
   l->addWidget(noFlapsRB);
   l->addWidget(oneFlapRB);
   l->addWidget(twoFlapsRB);
-  l->addWidget(new QLabel(tr("<br>First Flap Channel:")));
+  l->addWidget(new QLabel());   //  spacer
+  l->addWidget(flap1L);
   l->addWidget(flap1CB);
-  l->addWidget(new QLabel(tr("Second Flap Channel:")));
+  l->addWidget(flap2L);
   l->addWidget(flap2CB);
   l->addWidget(new QLabel(tr("Flaps Up Switch:")));
   l->addWidget(flapsUpSwitchCB);
@@ -604,7 +616,9 @@ void FlapsPage::noFlapChannel()
 
 void FlapsPage::oneFlapChannel()
 {
+  flap1L->setText(tr("Flap Channel:"));
   flap1CB->setEnabled(true);
+  flap2L->setText(flap1L->text());
   flap2CB->setEnabled(false);
   updateSwitchCB(flapsUpSwitchCB, true);
   updateSwitchCB(flapsDownSwitchCB, true);
@@ -612,7 +626,9 @@ void FlapsPage::oneFlapChannel()
 
 void FlapsPage::twoFlapChannels()
 {
+  flap1L->setText(tr("Left Flap Channel:"));
   flap1CB->setEnabled(true);
+  flap2L->setText(tr("Right Flap Channel:"));
   flap2CB->setEnabled(true);
   updateSwitchCB(flapsUpSwitchCB, true);
   updateSwitchCB(flapsDownSwitchCB, true);
@@ -626,6 +642,8 @@ AirbrakesPage::AirbrakesPage(WizardDialog *dlg, QString image, QString title, QS
   twoAirbrakesRB = new QRadioButton(tr("Yes, controlled by two channels"));
   noAirbrakesRB->setChecked(true);
 
+  airbrake1L = new QLabel(tr("Airbrake Channel:"));
+  airbrake2L = new QLabel(airbrake1L->text());
   airbrake1CB = new QComboBox();
   airbrake2CB = new QComboBox();
   airbrake1CB->setEnabled(false);
@@ -637,9 +655,10 @@ AirbrakesPage::AirbrakesPage(WizardDialog *dlg, QString image, QString title, QS
   l->addWidget(noAirbrakesRB);
   l->addWidget(oneAirbrakeRB);
   l->addWidget(twoAirbrakesRB);
-  l->addWidget(new QLabel(tr("<br>First Airbrake Channel:")));
+  l->addWidget(new QLabel());   //  spacer
+  l->addWidget(airbrake1L);
   l->addWidget(airbrake1CB);
-  l->addWidget(new QLabel(tr("Second Airbrake Channel:")));
+  l->addWidget(airbrake2L);
   l->addWidget(airbrake2CB);
   l->addWidget(new QLabel(tr("Airbrake Switch:")));
   l->addWidget(airbrakeSwitchCB);
@@ -673,21 +692,27 @@ bool AirbrakesPage::validatePage()
 
 void AirbrakesPage::noAirbrakeChannel()
 {
+  airbrake1L->setText(tr("Airbrake Channel:"));
   airbrake1CB->setEnabled(false);
+  airbrake2L->setText(airbrake1L->text());
   airbrake2CB->setEnabled(false);
   updateSwitchCB(airbrakeSwitchCB, false);
 }
 
 void AirbrakesPage::oneAirbrakeChannel()
 {
+  airbrake1L->setText(tr("Airbrake Channel:"));
   airbrake1CB->setEnabled(true);
+  airbrake2L->setText(airbrake1L->text());
   airbrake2CB->setEnabled(false);
   updateSwitchCB(airbrakeSwitchCB, true);
 }
 
 void AirbrakesPage::twoAirbrakeChannels()
 {
+  airbrake1L->setText(tr("Left Airbrake Channel:"));
   airbrake1CB->setEnabled(true);
+  airbrake2L->setText(tr("Right Airbrake Channel:"));
   airbrake2CB->setEnabled(true);
   updateSwitchCB(airbrakeSwitchCB, true);
 }
