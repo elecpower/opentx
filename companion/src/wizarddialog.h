@@ -160,6 +160,7 @@ private:
   QComboBox *aileron2CB;
   QLabel *aileron1L;
   QLabel *aileron2L;
+  QCheckBox *incDiffCB;
 };
 
 class FlapsPage: public StandardPage
@@ -181,10 +182,12 @@ private:
   QRadioButton *noFlapsRB;
   QComboBox *flap1CB;
   QComboBox *flap2CB;
-  QComboBox *flapsUpSwitchCB;
-  QComboBox *flapsDownSwitchCB;
   QLabel *flap1L;
   QLabel *flap2L;
+  QComboBox *flapsUpHalfSwitchCB;
+  QComboBox *flapsUpFullSwitchCB;
+  QComboBox *flapsDownHalfSwitchCB;
+  QComboBox *flapsDownFullSwitchCB;
 };
 
 class AirbrakesPage: public StandardPage

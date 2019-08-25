@@ -484,16 +484,19 @@ AileronsPage::AileronsPage(WizardDialog *dlg, QString image, QString title, QStr
   aileron2CB = new QComboBox();
   aileron1CB->setEnabled(false);
   aileron2CB->setEnabled(false);
+  incDiffCB = new QCheckBox(tr("Include Differential"));
+  incDiffCB->setEnabled(false);
 
   QLayout *l = layout();
   l->addWidget(noAileronsRB);
   l->addWidget(oneAileronRB);
   l->addWidget(twoAileronsRB);
-  l->addWidget(new QLabel());   //   spacer
+  l->addWidget(new QLabel());   //  spacer
   l->addWidget(aileron1L);
   l->addWidget(aileron1CB);
   l->addWidget(aileron2L);
   l->addWidget(aileron2CB);
+  l->addWidget(incDiffCB);
 
   connect(noAileronsRB, SIGNAL(toggled(bool)), this, SLOT(noAileronChannel()));
   connect(oneAileronRB, SIGNAL(toggled(bool)), this, SLOT(oneAileronChannel()));
@@ -514,10 +517,10 @@ bool AileronsPage::validatePage()
     return true;
   }
   if (oneAileronRB->isChecked()) {
-    return (bookChannel(aileron1CB, AILERONS_INPUT, 100 ));
+    return (bookChannel(aileron1CB, AILERONS_INPUT, 100 ));  //  TODO  pass differential maybe as flag
   }
-  return( bookChannel(aileron1CB, AILERONS_INPUT, 100 ) &&
-    bookChannel(aileron2CB, AILERONS_INPUT, -100 ));
+  return( bookChannel(aileron1CB, AILERONS_INPUT, 100 ) &&   //  TODO  pass differential maybe as flag
+    bookChannel(aileron2CB, AILERONS_INPUT, -100 ));         //  TODO  pass differential maybe as flag
 }
 
 void AileronsPage::noAileronChannel()
@@ -526,6 +529,8 @@ void AileronsPage::noAileronChannel()
   aileron1CB->setEnabled(false);
   aileron2L->setText(aileron1L->text());
   aileron2CB->setEnabled(false);
+  incDiffCB->setChecked(false);
+  incDiffCB->setEnabled(false);
 }
 
 void AileronsPage::oneAileronChannel()
@@ -534,6 +539,7 @@ void AileronsPage::oneAileronChannel()
   aileron1CB->setEnabled(true);
   aileron2L->setText(aileron1L->text());
   aileron2CB->setEnabled(false);
+  incDiffCB->setEnabled(true);
 }
 
 void AileronsPage::twoAileronChannels()
@@ -542,6 +548,7 @@ void AileronsPage::twoAileronChannels()
   aileron1CB->setEnabled(true);
   aileron2L->setText(tr("Right Aileron Channel:"));
   aileron2CB->setEnabled(true);
+  incDiffCB->setEnabled(true);
 }
 
 FlapsPage::FlapsPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage, RawSwitchFilterItemModel *rawSwitchItemModel):
@@ -558,10 +565,14 @@ FlapsPage::FlapsPage(WizardDialog *dlg, QString image, QString title, QString te
   flap2CB = new QComboBox();
   flap1CB->setEnabled(false);
   flap2CB->setEnabled(false);
-  flapsUpSwitchCB = new QComboBox;
-  populateSwitchCB(flapsUpSwitchCB, false);
-  flapsDownSwitchCB = new QComboBox;
-  populateSwitchCB(flapsDownSwitchCB, false);
+  flapsUpHalfSwitchCB = new QComboBox;
+  populateSwitchCB(flapsUpHalfSwitchCB, false);
+  flapsUpFullSwitchCB = new QComboBox;
+  populateSwitchCB(flapsUpFullSwitchCB, false);
+  flapsDownHalfSwitchCB = new QComboBox;
+  populateSwitchCB(flapsDownHalfSwitchCB, false);
+  flapsDownFullSwitchCB = new QComboBox;
+  populateSwitchCB(flapsDownFullSwitchCB, false);
 
   QLayout *l = layout();
   l->addWidget(noFlapsRB);
@@ -572,10 +583,14 @@ FlapsPage::FlapsPage(WizardDialog *dlg, QString image, QString title, QString te
   l->addWidget(flap1CB);
   l->addWidget(flap2L);
   l->addWidget(flap2CB);
-  l->addWidget(new QLabel(tr("Flaps Up Switch:")));
-  l->addWidget(flapsUpSwitchCB);
-  l->addWidget(new QLabel(tr("Flaps Down Switch:")));
-  l->addWidget(flapsDownSwitchCB);
+  l->addWidget(new QLabel(tr("Flaps Up Half Switch:")));
+  l->addWidget(flapsUpHalfSwitchCB);
+  l->addWidget(new QLabel(tr("Flaps Up Full Switch:")));
+  l->addWidget(flapsUpFullSwitchCB);
+  l->addWidget(new QLabel(tr("Flaps Down Half Switch:")));
+  l->addWidget(flapsDownHalfSwitchCB);
+  l->addWidget(new QLabel(tr("Flaps Down Full Switch:")));
+  l->addWidget(flapsDownFullSwitchCB);
 
   connect(noFlapsRB, SIGNAL(toggled(bool)), this, SLOT(noFlapChannel()));
   connect(oneFlapRB, SIGNAL(toggled(bool)), this, SLOT(oneFlapChannel()));
@@ -594,24 +609,28 @@ bool FlapsPage::validatePage() {
   if (noFlapsRB->isChecked()) {
     return true;
   }
-  if (RawSwitch(flapsUpSwitchCB->itemData(flapsUpSwitchCB->currentIndex()).toInt()) == RawSwitch(SWITCH_TYPE_NONE) &&
-      RawSwitch(flapsDownSwitchCB->itemData(flapsDownSwitchCB->currentIndex()).toInt()) == RawSwitch(SWITCH_TYPE_NONE))
+  if (RawSwitch(flapsUpHalfSwitchCB->itemData(flapsUpHalfSwitchCB->currentIndex()).toInt()) == RawSwitch(SWITCH_TYPE_NONE) &&
+      RawSwitch(flapsUpFullSwitchCB->itemData(flapsUpFullSwitchCB->currentIndex()).toInt()) == RawSwitch(SWITCH_TYPE_NONE) &&
+      RawSwitch(flapsDownHalfSwitchCB->itemData(flapsDownHalfSwitchCB->currentIndex()).toInt()) == RawSwitch(SWITCH_TYPE_NONE) &&
+      RawSwitch(flapsDownFullSwitchCB->itemData(flapsDownFullSwitchCB->currentIndex()).toInt()) == RawSwitch(SWITCH_TYPE_NONE))
     return false;
-  if (flapsUpSwitchCB->currentIndex() == flapsDownSwitchCB->currentIndex())
+  if (flapsUpHalfSwitchCB->currentIndex() == flapsUpFullSwitchCB->currentIndex())   //  TODO  many to many check for all combos
     return false;
   if (oneFlapRB->isChecked()) {
-    return (bookChannel(flap1CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpSwitchCB, flapsDownSwitchCB));
+    return (bookChannel(flap1CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpFullSwitchCB, flapsDownFullSwitchCB));   //  TODO  More combos
   }
-  return (bookChannel(flap1CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpSwitchCB, flapsDownSwitchCB) &&
-          bookChannel(flap2CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpSwitchCB, flapsDownSwitchCB)   );
+  return (bookChannel(flap1CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpFullSwitchCB, flapsDownFullSwitchCB) &&    //  TODO  More combos
+          bookChannel(flap2CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpFullSwitchCB, flapsDownFullSwitchCB)   );
 }
 
 void FlapsPage::noFlapChannel()
 {
   flap1CB->setEnabled(false);
   flap2CB->setEnabled(false);
-  updateSwitchCB(flapsUpSwitchCB, false);
-  updateSwitchCB(flapsDownSwitchCB, false);
+  updateSwitchCB(flapsUpHalfSwitchCB, false);
+  updateSwitchCB(flapsUpFullSwitchCB, false);
+  updateSwitchCB(flapsDownHalfSwitchCB, false);
+  updateSwitchCB(flapsDownFullSwitchCB, false);
 }
 
 void FlapsPage::oneFlapChannel()
@@ -620,8 +639,10 @@ void FlapsPage::oneFlapChannel()
   flap1CB->setEnabled(true);
   flap2L->setText(flap1L->text());
   flap2CB->setEnabled(false);
-  updateSwitchCB(flapsUpSwitchCB, true);
-  updateSwitchCB(flapsDownSwitchCB, true);
+  updateSwitchCB(flapsUpHalfSwitchCB, true);
+  updateSwitchCB(flapsUpFullSwitchCB, true);
+  updateSwitchCB(flapsDownHalfSwitchCB, true);
+  updateSwitchCB(flapsDownFullSwitchCB, true);
 }
 
 void FlapsPage::twoFlapChannels()
@@ -630,8 +651,10 @@ void FlapsPage::twoFlapChannels()
   flap1CB->setEnabled(true);
   flap2L->setText(tr("Right Flap Channel:"));
   flap2CB->setEnabled(true);
-  updateSwitchCB(flapsUpSwitchCB, true);
-  updateSwitchCB(flapsDownSwitchCB, true);
+  updateSwitchCB(flapsUpHalfSwitchCB, true);
+  updateSwitchCB(flapsUpFullSwitchCB, true);
+  updateSwitchCB(flapsDownHalfSwitchCB, true);
+  updateSwitchCB(flapsDownFullSwitchCB, true);
 }
 
 AirbrakesPage::AirbrakesPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage, RawSwitchFilterItemModel *rawSwitchItemModel):
