@@ -573,6 +573,8 @@ FlapsPage::FlapsPage(WizardDialog *dlg, QString image, QString title, QString te
   populateSwitchCB(flapsDownHalfSwitchCB, false);
   flapsDownFullSwitchCB = new QComboBox;
   populateSwitchCB(flapsDownFullSwitchCB, false);
+  elevatorCompCB = new QCheckBox(tr("Elevator Compensation"));
+  elevatorCompCB->setEnabled(false);
 
   QLayout *l = layout();
   l->addWidget(noFlapsRB);
@@ -591,6 +593,7 @@ FlapsPage::FlapsPage(WizardDialog *dlg, QString image, QString title, QString te
   l->addWidget(flapsDownHalfSwitchCB);
   l->addWidget(new QLabel(tr("Flaps Down Full Switch:")));
   l->addWidget(flapsDownFullSwitchCB);
+  l->addWidget(elevatorCompCB);
 
   connect(noFlapsRB, SIGNAL(toggled(bool)), this, SLOT(noFlapChannel()));
   connect(oneFlapRB, SIGNAL(toggled(bool)), this, SLOT(oneFlapChannel()));
@@ -617,44 +620,44 @@ bool FlapsPage::validatePage() {
   if (flapsUpHalfSwitchCB->currentIndex() == flapsUpFullSwitchCB->currentIndex())   //  TODO  many to many check for all combos
     return false;
   if (oneFlapRB->isChecked()) {
-    return (bookChannel(flap1CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpFullSwitchCB, flapsDownFullSwitchCB));   //  TODO  More combos
+    return (bookChannel(flap1CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpFullSwitchCB, flapsDownFullSwitchCB));   //  TODO  More combos and elevator compensation
   }
-  return (bookChannel(flap1CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpFullSwitchCB, flapsDownFullSwitchCB) &&    //  TODO  More combos
+  return (bookChannel(flap1CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpFullSwitchCB, flapsDownFullSwitchCB) &&    //  TODO  More combos and elevator compensation
           bookChannel(flap2CB, FLAPS_INPUT, 100, NO_INPUT, 0, flapsUpFullSwitchCB, flapsDownFullSwitchCB)   );
 }
 
 void FlapsPage::noFlapChannel()
 {
-  flap1CB->setEnabled(false);
-  flap2CB->setEnabled(false);
-  updateSwitchCB(flapsUpHalfSwitchCB, false);
-  updateSwitchCB(flapsUpFullSwitchCB, false);
-  updateSwitchCB(flapsDownHalfSwitchCB, false);
-  updateSwitchCB(flapsDownFullSwitchCB, false);
+  setEnableCtls(false);
+  flap1L->setText(tr("Flap Channel:"));
+  flap2L->setText(flap1L->text());
+  elevatorCompCB->setChecked(false);
 }
 
 void FlapsPage::oneFlapChannel()
 {
+  setEnableCtls(true);
   flap1L->setText(tr("Flap Channel:"));
-  flap1CB->setEnabled(true);
   flap2L->setText(flap1L->text());
   flap2CB->setEnabled(false);
-  updateSwitchCB(flapsUpHalfSwitchCB, true);
-  updateSwitchCB(flapsUpFullSwitchCB, true);
-  updateSwitchCB(flapsDownHalfSwitchCB, true);
-  updateSwitchCB(flapsDownFullSwitchCB, true);
 }
 
 void FlapsPage::twoFlapChannels()
 {
+  setEnableCtls(true);
   flap1L->setText(tr("Left Flap Channel:"));
-  flap1CB->setEnabled(true);
   flap2L->setText(tr("Right Flap Channel:"));
-  flap2CB->setEnabled(true);
-  updateSwitchCB(flapsUpHalfSwitchCB, true);
-  updateSwitchCB(flapsUpFullSwitchCB, true);
-  updateSwitchCB(flapsDownHalfSwitchCB, true);
-  updateSwitchCB(flapsDownFullSwitchCB, true);
+}
+
+void FlapsPage::setEnableCtls(bool enabled)
+{
+  flap1CB->setEnabled(enabled);
+  flap2CB->setEnabled(enabled);
+  updateSwitchCB(flapsUpHalfSwitchCB, enabled);
+  updateSwitchCB(flapsUpFullSwitchCB, enabled);
+  updateSwitchCB(flapsDownHalfSwitchCB, enabled);
+  updateSwitchCB(flapsDownFullSwitchCB, enabled);
+  elevatorCompCB->setEnabled(enabled);
 }
 
 AirbrakesPage::AirbrakesPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage, RawSwitchFilterItemModel *rawSwitchItemModel):

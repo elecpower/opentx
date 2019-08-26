@@ -188,6 +188,9 @@ private:
   QComboBox *flapsUpFullSwitchCB;
   QComboBox *flapsDownHalfSwitchCB;
   QComboBox *flapsDownFullSwitchCB;
+  QCheckBox *elevatorCompCB;
+
+  void setEnableCtls(bool enabled);
 };
 
 class AirbrakesPage: public StandardPage
