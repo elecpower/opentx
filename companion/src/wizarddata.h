@@ -37,12 +37,15 @@ enum Input {
   THROTTLE_CUT_INPUT
 };
 
-//  To Do add extras such as trainer, glider, wing, drone, multi rotor
+//  To Do add extras such as trainer, glider, wing, drone
 enum Vehicle {
-  NOVEHICLE,  //  to do rename UNKNOWN
+  UNKNOWN,
   PLANE,
   MULTIROTOR,
   HELICOPTER,
+  TRAINER,
+  GLIDER,
+  WING,
   FLIGHTSIM
 };
 
@@ -53,6 +56,7 @@ enum Options {
   MAX_NUM
 };
 
+//  TODO add receiver set up page - int or ext module, protocol, num channels
 enum WizardPage {
   Page_None = -1,
   Page_Models,
@@ -77,7 +81,7 @@ enum WizardPage {
   Page_Conclusion
 };
 
-#define WIZ_MAX_CHANNELS 8    //  to do user choice as could be 4, 6, 8, 16 so this is MAX Receiver
+#define WIZ_MAX_CHANNELS 8    //  to do user choice as could be 4, 6, 8, 16 so this is MAX Receiver - or use recever set up page
 class Channel
 {
   public:

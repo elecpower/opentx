@@ -166,7 +166,7 @@ void WizardDialog::showHelp()
   QMessageBox::information(this, tr("Model Wizard Help"), message);
 }
 
-StandardPage::StandardPage(WizardPage currentPage, WizardDialog *dlg, QString image, QString title, QString text, int nextPage, RawSwitchFilterItemModel *rawSwitchItemModel):
+StandardPage::StandardPage(WizardPage currentPage, WizardDialog *dlg, QString image, QString title, QString text, int nextPage, RawSwitchFilterItemModel *rawSwitchItemModel, LayoutTypes layoutType):
   QWizardPage(),
   wizDlg(dlg),
   pageCurrent(currentPage),
@@ -178,9 +178,24 @@ StandardPage::StandardPage(WizardPage currentPage, WizardDialog *dlg, QString im
   topLabel = new QLabel(text+"<br>");
   topLabel->setWordWrap(true);
 
-  QVBoxLayout *layout = new QVBoxLayout;
-  layout->addWidget(topLabel);
-  setLayout(layout);
+  switch (layoutType)
+  {
+    case LAYOUT_VBOX:
+      QVBoxLayout *layout1 = new QVBoxLayout;
+      layout1->addWidget(topLabel);
+      setLayout(layout1);
+      break;
+    case LAYOUT_GRID:
+      QGridLayout *layout2 = new QGridLayout;
+      layout2->addWidget(topLabel,0,0);
+      setLayout(layout2);
+      break;
+    default:
+      QVBoxLayout *layout3 = new QVBoxLayout;
+      layout3->addWidget(topLabel);
+      setLayout(layout3);
+      break;
+  }
 }
 
 int StandardPage::getDefaultChannel(const Input input)
@@ -205,7 +220,7 @@ int StandardPage::totalChannelsAvailable()
   return c;
 }
 
-void StandardPage::populateCB(QComboBox *cb, int preferred)
+void StandardPage::populateChannelCB(QComboBox *cb, int preferred)
 {
   cb->clear();
 
@@ -302,9 +317,11 @@ void StandardPage::populateSwitchCB(QComboBox * cb, bool enabled)
 
 void StandardPage::updateSwitchCB(QComboBox * cb, bool enabled)
 {
-  if (!enabled)
-    cb->setCurrentIndex(cb->findData(RawSwitch(SWITCH_TYPE_NONE).toValue()));
-  cb->setEnabled(enabled);
+  if (rawSwitchItemModel) {
+    if (!enabled)
+      cb->setCurrentIndex(cb->findData(RawSwitch(SWITCH_TYPE_NONE).toValue()));
+    cb->setEnabled(enabled);
+  }
 }
 
 ModelSelectionPage::ModelSelectionPage(WizardDialog *dlg, QString image, QString title, QString text, Firmware *fw)
@@ -451,7 +468,7 @@ ThrottlePage::ThrottlePage(WizardDialog *dlg, QString image, QString title, QStr
 
 void ThrottlePage::initializePage()
 {
-  populateCB(throttleCB, getDefaultChannel(THROTTLE_INPUT));
+  populateChannelCB(throttleCB, getDefaultChannel(THROTTLE_INPUT));
   StandardPage::initializePage();
 }
 
@@ -505,8 +522,8 @@ AileronsPage::AileronsPage(WizardDialog *dlg, QString image, QString title, QStr
 
 void AileronsPage::initializePage()
 {
-  populateCB(aileron1CB, getDefaultChannel(AILERONS_INPUT));
-  populateCB(aileron2CB, nextFreeChannel(4));
+  populateChannelCB(aileron1CB, getDefaultChannel(AILERONS_INPUT));
+  populateChannelCB(aileron2CB, nextFreeChannel(4));
   StandardPage::initializePage();
 }
 
@@ -552,7 +569,7 @@ void AileronsPage::twoAileronChannels()
 }
 
 FlapsPage::FlapsPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage, RawSwitchFilterItemModel *rawSwitchItemModel):
-  StandardPage(Page_Flaps, dlg, image, title, text, nextPage, rawSwitchItemModel)
+  StandardPage(Page_Flaps, dlg, image, title, text, nextPage, rawSwitchItemModel, LAYOUT_GRID)
 {
   noFlapsRB = new QRadioButton(tr("No"));
   oneFlapRB = new QRadioButton(tr("Yes, controlled by a single channel"));
@@ -602,8 +619,8 @@ FlapsPage::FlapsPage(WizardDialog *dlg, QString image, QString title, QString te
 
 void FlapsPage::initializePage()
 {
-  populateCB(flap1CB, nextFreeChannel(4));
-  populateCB(flap2CB, nextFreeChannel(4));
+  populateChannelCB(flap1CB, nextFreeChannel(4));
+  populateChannelCB(flap2CB, nextFreeChannel(4));
   StandardPage::initializePage();
 }
 
@@ -696,8 +713,8 @@ AirbrakesPage::AirbrakesPage(WizardDialog *dlg, QString image, QString title, QS
 
 void AirbrakesPage::initializePage()
 {
-  populateCB(airbrake1CB, nextFreeChannel(4));
-  populateCB(airbrake2CB, nextFreeChannel(4));
+  populateChannelCB(airbrake1CB, nextFreeChannel(4));
+  populateChannelCB(airbrake2CB, nextFreeChannel(4));
   StandardPage::initializePage();
 }
 
@@ -758,8 +775,8 @@ ElevonsPage::ElevonsPage(WizardDialog *dlg, QString image, QString title, QStrin
 
 void ElevonsPage::initializePage()
 {
-  populateCB(elevon1CB, getDefaultChannel(ELEVATOR_INPUT));
-  populateCB(elevon2CB, getDefaultChannel(AILERONS_INPUT));
+  populateChannelCB(elevon1CB, getDefaultChannel(ELEVATOR_INPUT));
+  populateChannelCB(elevon2CB, getDefaultChannel(AILERONS_INPUT));
   StandardPage::initializePage();
 }
 
@@ -791,7 +808,7 @@ RudderPage::RudderPage(WizardDialog *dlg, QString image, QString title, QString 
 
 void RudderPage::initializePage()
 {
-  populateCB(rudderCB, getDefaultChannel(RUDDER_INPUT));
+  populateChannelCB(rudderCB, getDefaultChannel(RUDDER_INPUT));
   StandardPage::initializePage();
 }
 
@@ -828,8 +845,8 @@ VTailPage::VTailPage(WizardDialog *dlg, QString image, QString title, QString te
 
 void VTailPage::initializePage()
 {
-  populateCB(tail1CB, getDefaultChannel(ELEVATOR_INPUT));
-  populateCB(tail2CB, getDefaultChannel(AILERONS_INPUT));
+  populateChannelCB(tail1CB, getDefaultChannel(ELEVATOR_INPUT));
+  populateChannelCB(tail2CB, getDefaultChannel(AILERONS_INPUT));
   StandardPage::initializePage();
 }
 
@@ -857,8 +874,8 @@ TailPage::TailPage(WizardDialog *dlg, QString image, QString title, QString text
 
 void TailPage::initializePage()
 {
-  populateCB(elevatorCB, getDefaultChannel(ELEVATOR_INPUT));
-  populateCB(rudderCB, getDefaultChannel(RUDDER_INPUT));
+  populateChannelCB(elevatorCB, getDefaultChannel(ELEVATOR_INPUT));
+  populateChannelCB(rudderCB, getDefaultChannel(RUDDER_INPUT));
   StandardPage::initializePage();
 
   if (totalChannelsAvailable() < 2) {
@@ -899,7 +916,7 @@ SimpleTailPage::SimpleTailPage(WizardDialog *dlg, QString image, QString title, 
 
 void SimpleTailPage::initializePage()
 {
-  populateCB(elevatorCB, getDefaultChannel(ELEVATOR_INPUT));
+  populateChannelCB(elevatorCB, getDefaultChannel(ELEVATOR_INPUT));
   StandardPage::initializePage();
 }
 
@@ -981,10 +998,10 @@ FblPage::FblPage(WizardDialog *dlg, QString image, QString title, QString text, 
 
 void FblPage::initializePage()
 {
-  populateCB(throttleCB, getDefaultChannel(THROTTLE_INPUT));
-  populateCB(yawCB, getDefaultChannel(RUDDER_INPUT));
-  populateCB(pitchCB, getDefaultChannel(ELEVATOR_INPUT));
-  populateCB(rollCB, getDefaultChannel(AILERONS_INPUT));
+  populateChannelCB(throttleCB, getDefaultChannel(THROTTLE_INPUT));
+  populateChannelCB(yawCB, getDefaultChannel(RUDDER_INPUT));
+  populateChannelCB(pitchCB, getDefaultChannel(ELEVATOR_INPUT));
+  populateChannelCB(rollCB, getDefaultChannel(AILERONS_INPUT));
   StandardPage::initializePage();
 }
 
@@ -1018,10 +1035,10 @@ HeliPage::HeliPage(WizardDialog *dlg, QString image, QString title, QString text
 
 void HeliPage::initializePage()
 {
-  populateCB(throttleCB, getDefaultChannel(THROTTLE_INPUT));
-  populateCB(yawCB, getDefaultChannel(RUDDER_INPUT));
-  populateCB(pitchCB, getDefaultChannel(ELEVATOR_INPUT));
-  populateCB(rollCB, getDefaultChannel(AILERONS_INPUT));
+  populateChannelCB(throttleCB, getDefaultChannel(THROTTLE_INPUT));
+  populateChannelCB(yawCB, getDefaultChannel(RUDDER_INPUT));
+  populateChannelCB(pitchCB, getDefaultChannel(ELEVATOR_INPUT));
+  populateChannelCB(rollCB, getDefaultChannel(AILERONS_INPUT));
   StandardPage::initializePage();
 }
 
@@ -1055,10 +1072,10 @@ MultirotorPage::MultirotorPage(WizardDialog *dlg, QString image, QString title, 
 
 void MultirotorPage::initializePage()
 {
-  populateCB(throttleCB, getDefaultChannel(THROTTLE_INPUT));
-  populateCB(yawCB, getDefaultChannel(RUDDER_INPUT));
-  populateCB(pitchCB, getDefaultChannel(ELEVATOR_INPUT));
-  populateCB(rollCB, getDefaultChannel(AILERONS_INPUT));
+  populateChannelCB(throttleCB, getDefaultChannel(THROTTLE_INPUT));
+  populateChannelCB(yawCB, getDefaultChannel(RUDDER_INPUT));
+  populateChannelCB(pitchCB, getDefaultChannel(ELEVATOR_INPUT));
+  populateChannelCB(rollCB, getDefaultChannel(AILERONS_INPUT));
   StandardPage::initializePage();
 }
 

@@ -25,6 +25,11 @@
 
 #include <QtWidgets>
 
+enum LayoutTypes {
+  LAYOUT_VBOX,
+  LAYOUT_GRID
+};
+
 class RawSwitchFilterItemModel;
 
 class WizardDialog : public QWizard
@@ -47,7 +52,7 @@ class StandardPage: public QWizardPage
   Q_OBJECT
 
   public:
-    StandardPage(WizardPage curPage, WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1, RawSwitchFilterItemModel *rawSwitchItemModel = nullptr);
+    StandardPage(WizardPage curPage, WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1, RawSwitchFilterItemModel *rawSwitchItemModel = nullptr, LayoutTypes layoutType = LAYOUT_VBOX);
     WizardDialog *wizDlg;
 
   protected:
@@ -57,7 +62,7 @@ class StandardPage: public QWizardPage
     void cleanupPage();
     int getDefaultChannel(const Input input);
     int nextFreeChannel(int channel = 0);
-    void populateCB(QComboBox *cb, int preferred = -1);
+    void populateChannelCB(QComboBox *cb, int preferred = -1);
     bool bookChannel(QComboBox *cb, Input input1, int weight1, Input input2 = NO_INPUT, int weight2 = 0, QComboBox *switch1 = nullptr, QComboBox *switch2 = nullptr);
     int totalChannelsAvailable();
     void populateSwitchCB(QComboBox *cb, bool enabled = true);

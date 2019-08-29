@@ -39,7 +39,7 @@ void Channel::clear()
 
 WizMix::WizMix(Firmware * firmware, GeneralSettings & settings, unsigned int modelId, ModelData & modelData):
   complete(false),
-  vehicle(NOVEHICLE),
+  vehicle(UNKNOWN),
   firmware(firmware),
   settings(settings),
   originalModelData(modelData),
@@ -76,13 +76,12 @@ void WizMix::addMix(ModelData & model, Input input, int weight, int channel, int
     }
     else if (input==FLAPS_INPUT){
       // There ought to be some kind of constants for switches somewhere...
-      maxMixSwitch(tr("Flaps Up"), model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? -SWITCH_ELE : SWITCH_SA0, weight); //Taranis-Horus SA-UP, 9X ELE-UP
-      maxMixSwitch(tr("Flaps Dn"), model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? SWITCH_ELE : SWITCH_SA2, -weight); //Taranis-Horus SA-DOWN, 9X ELE-DOWN
-
+      maxMixSwitch(tr("Flaps Up"), model.mixData[mixIndex++], channel+1, swtch,  weight);
+      maxMixSwitch(tr("Flaps Dn"), model.mixData[mixIndex++], channel+1, swtch, -weight);
     }
     else if (input==AIRBRAKES_INPUT){
-      maxMixSwitch(tr("AirbkOff"), model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? -SWITCH_RUD : SWITCH_SE0, -weight); //Taranis-Horus SE-UP, 9X RUD-UP
-      maxMixSwitch(tr("AirbkOn"),  model.mixData[mixIndex++], channel+1, IS_SKY9X(getCurrentBoard()) ? SWITCH_RUD : SWITCH_SE2, weight); //Tatanis-Horus SE-DOWN, 9X RUD-DOWN
+      maxMixSwitch(tr("AirbkOff"), model.mixData[mixIndex++], channel+1, swtch, -weight);
+      maxMixSwitch(tr("AirbkOn"),  model.mixData[mixIndex++], channel+1, swtch, weight);
     }
     else if (input==THROTTLE_CUT_INPUT) {
       maxMixSwitch(tr("Cut"), model.mixData[mixIndex++], channel+1, swtch , -100, MLTPX_REP);
@@ -115,6 +114,7 @@ WizMix::operator ModelData()
 
     if (ch.input1 == THROTTLE_INPUT || ch.input2 == THROTTLE_INPUT) {
       throttleChannel++;
+<<<<<<< HEAD
 
       /*
       if (options[THROTTLE_CUT_OPTION]) {
@@ -128,6 +128,8 @@ WizMix::operator ModelData()
         strncpy(mix.name, tr("Cut").toLatin1().data(), sizeof(mix.name)-1);
       }
       */
+=======
+>>>>>>> 0e4701b39 (continued)
     }
   }
 
