@@ -25,11 +25,6 @@
 
 #include <QtWidgets>
 
-enum LayoutTypes {
-  LAYOUT_VBOX,
-  LAYOUT_GRID
-};
-
 class RawSwitchFilterItemModel;
 
 class WizardDialog : public QWizard
@@ -52,7 +47,7 @@ class StandardPage : public QWizardPage
   Q_OBJECT
 
   public:
-    StandardPage(WizardPage curPage, WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1, RawSwitchFilterItemModel *rawSwitchItemModel = nullptr, LayoutTypes layoutType = LAYOUT_VBOX);
+    StandardPage(WizardPage curPage, WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1, RawSwitchFilterItemModel *rawSwitchItemModel = nullptr);
     WizardDialog *wizDlg;
 
   protected:

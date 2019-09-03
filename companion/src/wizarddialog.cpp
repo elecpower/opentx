@@ -166,7 +166,7 @@ void WizardDialog::showHelp()
   QMessageBox::information(this, tr("Model Wizard Help"), message);
 }
 
-StandardPage::StandardPage(WizardPage currentPage, WizardDialog *dlg, QString image, QString title, QString text, int nextPage, RawSwitchFilterItemModel *rawSwitchItemModel, LayoutTypes layoutType):
+StandardPage::StandardPage(WizardPage currentPage, WizardDialog *dlg, QString image, QString title, QString text, int nextPage, RawSwitchFilterItemModel *rawSwitchItemModel):
   QWizardPage(),
   wizDlg(dlg),
   pageCurrent(currentPage),
@@ -178,24 +178,9 @@ StandardPage::StandardPage(WizardPage currentPage, WizardDialog *dlg, QString im
   topLabel = new QLabel(text+"<br>");
   topLabel->setWordWrap(true);
 
-  switch (layoutType)
-  {
-    case LAYOUT_VBOX:
-      QVBoxLayout *layout1 = new QVBoxLayout;
-      layout1->addWidget(topLabel);
-      setLayout(layout1);
-      break;
-    case LAYOUT_GRID:
-      QGridLayout *layout2 = new QGridLayout;
-      layout2->addWidget(topLabel,0,0);
-      setLayout(layout2);
-      break;
-    default:
-      QVBoxLayout *layout3 = new QVBoxLayout;
-      layout3->addWidget(topLabel);
-      setLayout(layout3);
-      break;
-  }
+  QVBoxLayout *layout = new QVBoxLayout;
+  layout->addWidget(topLabel);
+  setLayout(layout);
 }
 
 int StandardPage::getDefaultChannel(const Input input)
