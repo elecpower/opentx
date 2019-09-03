@@ -47,7 +47,7 @@ class WizardDialog : public QWizard
     void showHelp();
 };
 
-class StandardPage: public QWizardPage
+class StandardPage : public QWizardPage
 {
   Q_OBJECT
 
@@ -76,11 +76,13 @@ class StandardPage: public QWizardPage
     RawSwitchFilterItemModel *rawSwitchItemModel;
 };
 
-class ModelSelectionPage: public StandardPage
+class ModelSelectionPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   ModelSelectionPage(WizardDialog *dlg, QString image, QString title, QString text, Firmware *fw);
+
 private:
   QLineEdit *nameLineEdit;
   QRadioButton *planeRB;
@@ -91,22 +93,26 @@ private:
   int nextId() const;
 };
 
-class WingtypeSelectionPage: public StandardPage
+class WingtypeSelectionPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   WingtypeSelectionPage(WizardDialog *dlg, QString image, QString title, QString text);
+
 private:
   QRadioButton *deltaWingRB;
   QRadioButton *standardWingRB;
   int nextId() const;
 };
 
-class TailSelectionPage: public StandardPage
+class TailSelectionPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   TailSelectionPage(WizardDialog *dlg, QString image, QString title, QString text);
+
 private:
   QRadioButton *vTailRB;
   QRadioButton *standardTailRB;
@@ -114,18 +120,20 @@ private:
   int nextId() const;
 };
 
-class FlybarSelectionPage: public StandardPage
+class FlybarSelectionPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   FlybarSelectionPage(WizardDialog *dlg, QString image, QString title, QString text);
+
 private:
   QRadioButton *flybarRB;
   QRadioButton *noFlybarRB;
   int nextId() const;
 };
 
-class ThrottlePage: public StandardPage
+class ThrottlePage : public StandardPage
 {
   Q_OBJECT
 
@@ -144,9 +152,10 @@ class ThrottlePage: public StandardPage
     QComboBox *throttleCutSwitchCB;
 };
 
-class AileronsPage: public StandardPage
+class AileronsPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   AileronsPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1);
   void initializePage();
@@ -168,9 +177,10 @@ private:
   QCheckBox *incDiffCB;
 };
 
-class FlapsPage: public StandardPage
+class FlapsPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   FlapsPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1, RawSwitchFilterItemModel *rawSwitchItemModel = nullptr);
   void initializePage();
@@ -198,9 +208,10 @@ private:
   void setEnableCtls(bool enabled);
 };
 
-class AirbrakesPage: public StandardPage
+class AirbrakesPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   AirbrakesPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1, RawSwitchFilterItemModel *rawSwitchItemModel = nullptr);
   void initializePage();
@@ -222,7 +233,7 @@ private:
   QLabel *airbrake2L;
 };
 
-class ElevonsPage: public StandardPage
+class ElevonsPage : public StandardPage
 {
   Q_OBJECT
 
@@ -236,7 +247,7 @@ class ElevonsPage: public StandardPage
     QComboBox *elevon2CB;
 };
 
-class RudderPage: public StandardPage
+class RudderPage : public StandardPage
 {
   Q_OBJECT
 
@@ -255,14 +266,16 @@ class RudderPage: public StandardPage
     QComboBox *rudderCB;
 };
 
-class TailPage: public StandardPage
+class TailPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   TailPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1);
   void initializePage();
   void cleanupPage();
   bool validatePage();
+
 private:
   QComboBox *elevatorCB;
   QComboBox *rudderCB;
@@ -270,36 +283,42 @@ private:
   QLabel *errorMessage;
 };
 
-class VTailPage: public StandardPage
+class VTailPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   VTailPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1);
   void initializePage();
   bool validatePage();
+
 private:
   QComboBox *tail1CB;
   QComboBox *tail2CB;
 };
 
-class SimpleTailPage: public StandardPage
+class SimpleTailPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   SimpleTailPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1);
   void initializePage();
   bool validatePage();
+
 private:
   QComboBox *elevatorCB;
 };
 
-class CyclicPage: public StandardPage
+class CyclicPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   CyclicPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1);
   void initializePage();
   bool validatePage();
+
 private:
   QRadioButton *cyclic90RB;
   QRadioButton *cyclic120RB;
@@ -307,26 +326,30 @@ private:
   QRadioButton *cyclic140RB;
 };
 
-class GyroPage: public StandardPage
+class GyroPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   GyroPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1);
   void initializePage();
   bool validatePage();
+
 private:
   QRadioButton *noGyroRB;
   QRadioButton *switchGyroRB;
   QRadioButton *potGyroRB;
 };
 
-class FblPage: public StandardPage
+class FblPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   FblPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1);
   void initializePage();
   bool validatePage();
+
 private:
   QComboBox *throttleCB;
   QComboBox *yawCB;
@@ -334,13 +357,15 @@ private:
   QComboBox *rollCB;
 };
 
-class HeliPage: public StandardPage
+class HeliPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   HeliPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1);
   void initializePage();
   bool validatePage();
+
 private:
   QComboBox *throttleCB;
   QComboBox *yawCB;
@@ -348,13 +373,15 @@ private:
   QComboBox *rollCB;
 };
 
-class MultirotorPage: public StandardPage
+class MultirotorPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   MultirotorPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1);
   void initializePage();
   bool validatePage();
+
 private:
   QComboBox *throttleCB;
   QComboBox *yawCB;
@@ -362,41 +389,47 @@ private:
   QComboBox *rollCB;
 };
 
-class OptionsPage: public StandardPage
+class OptionsPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   OptionsPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1);
   void initializePage();
   bool validatePage();
+
 private:
   QCheckBox *throttleCutRB;
   QCheckBox *flightTimerRB;
   QCheckBox *throttleTimerRB;
 };
 
-class ConclusionPage: public StandardPage
+class ConclusionPage : public StandardPage
 {
   Q_OBJECT
+
 public:
   ConclusionPage(WizardDialog *dlg, QString image, QString title, QString text, int nextPage = -1);
   void initializePage();
   bool validatePage();
+
 private:
   QCheckBox *proceedCB;
   QLabel *textLabel;
 };
 
-class WizardPrinter:QObject
+class WizardPrinter : QObject
 {
   Q_OBJECT
+
 public:
-  WizardPrinter( WizMix * );
+  WizardPrinter(WizMix *);
   QString print();
+
 private:
   WizMix *mix;
-  QString inputName( Input );
-  QString printChannel( Input, int, Input, int );
+  QString inputName(Input);
+  QString printChannel(Input input1, int weight1, Input input2, int weight2);
 };
 #endif // _WIZARDDIALOG_H_
 

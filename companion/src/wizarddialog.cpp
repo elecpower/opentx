@@ -1161,7 +1161,7 @@ WizardPrinter::WizardPrinter(WizMix *wizMix)
   mix = wizMix;
 }
 
-QString WizardPrinter::printChannel( Input input1, int weight1, Input input2, int weight2 )
+QString WizardPrinter::printChannel(Input input1, int weight1, Input input2, int weight2)
 {
   QString str;
   str =  QString("[%1, %2]").arg(inputName(input1)).arg(weight1);
