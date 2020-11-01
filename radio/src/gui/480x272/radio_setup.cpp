@@ -65,12 +65,19 @@ enum menuRadioSetupItems {
   ITEM_SETUP_BACKLIGHT_DELAY,
   ITEM_SETUP_BRIGHTNESS,
   ITEM_SETUP_DIM_LEVEL,
+#if defined(KEYS_BACKLIGHT_GPIO)
+  ITEM_SETUP_KEYS_BACKLIGHT,
+#endif
   ITEM_SETUP_FLASH_BEEP,
+  CASE_PWR_BUTTON_PRESS(ITEM_SETUP_PWR_OFF_SPEED)
+#if defined(PXX2)
+  ITEM_RADIO_SETUP_OWNER_ID,
+#endif
   CASE_GPS(ITEM_SETUP_LABEL_GPS)
   CASE_GPS(ITEM_SETUP_TIMEZONE)
   CASE_GPS(ITEM_SETUP_ADJUST_RTC)
   CASE_GPS(ITEM_SETUP_GPSFORMAT)
-  CASE_PXX(ITEM_SETUP_COUNTRYCODE)
+  CASE_PXX1(ITEM_SETUP_COUNTRYCODE)
   ITEM_SETUP_LANGUAGE,
   ITEM_SETUP_IMPERIAL,
   IF_FAI_CHOICE(ITEM_SETUP_FAI)
@@ -106,6 +113,11 @@ bool menuRadioSetup(event_t event)
 #else
   #define FAI_CHOICE_ROW
 #endif
+#if defined(KEYS_BACKLIGHT_GPIO)
+  #define BACKLIGHT_ROWS  LABEL(BACKLIGHT), 0, 0, 0, 0, 0, 0,
+#else
+  #define BACKLIGHT_ROWS  LABEL(BACKLIGHT), 0, 0, 0, 0, 0,
+#endif
 
   MENU(STR_MENURADIOSETUP, RADIO_ICONS, menuTabGeneral, MENU_RADIO_SETUP, ITEM_SETUP_MAX, {
     2|NAVIGATION_LINE_BY_LINE, 2|NAVIGATION_LINE_BY_LINE, 1|NAVIGATION_LINE_BY_LINE, // Date Time Bat range
@@ -113,9 +125,23 @@ bool menuRadioSetup(event_t event)
     CASE_VARIO(LABEL(VARIO)) CASE_VARIO(0) CASE_VARIO(0) CASE_VARIO(0) CASE_VARIO(0)
     CASE_HAPTIC(LABEL(HAPTIC)) CASE_HAPTIC(0) CASE_HAPTIC(0) CASE_HAPTIC(0)
     LABEL(ALARMS), 0, 0, 0, 0,
-    LABEL(BACKLIGHT), 0, 0, 0, 0, 0,
-    CASE_GPS(LABEL(GPS)) CASE_GPS(0) CASE_GPS(0) CASE_GPS(0)
-    CASE_PXX(0) 0, 0, FAI_CHOICE_ROW 0, 0, 0, 0, 1/*to force edit mode*/ }); // Country code - Voice Language - Units - Fai choice - Play delay - USB mode - Chan order - Mode (1 to 4)
+    BACKLIGHT_ROWS
+    CASE_PWR_BUTTON_PRESS(0)
+    CASE_PXX2(0) // owner registration ID
+    CASE_GPS(LABEL(GPS))
+      CASE_GPS(0) // timezone
+      CASE_GPS(0) // adjust RTC
+      CASE_GPS(0) // GPS format
+    CASE_PXX1(0) // country code
+    0, // voice language
+    0, // imperial
+    FAI_CHOICE_ROW
+    0, // switches delay
+    0, // USB mode
+    0, // RX channels order
+    0, // sticks mode
+    1 /*to force edit mode*/
+  }); // Units - Fai choice - Play delay - USB mode - Chan order - Mode (1 to 4)
 
   if (event == EVT_ENTRY) {
     reusableBuffer.generalSettings.stickMode = g_eeGeneral.stickMode;
@@ -355,7 +381,7 @@ bool menuRadioSetup(event_t event)
         break;
 
       case ITEM_SETUP_BACKLIGHT_MODE:
-        lcdDrawText(MENUS_MARGIN_LEFT, y, STR_MODE);
+        lcdDrawText(MENUS_MARGIN_LEFT + INDENT_WIDTH , y, STR_MODE);
         g_eeGeneral.backlightMode = editChoice(RADIO_SETUP_2ND_COLUMN, y, STR_VBLMODE, g_eeGeneral.backlightMode, e_backlight_mode_off, e_backlight_mode_on, attr, event);
         break;
 
@@ -364,6 +390,12 @@ bool menuRadioSetup(event_t event)
         g_eeGeneral.alarmsFlash = editCheckBox(g_eeGeneral.alarmsFlash, RADIO_SETUP_2ND_COLUMN, y, attr, event ) ;
         break;
 
+#if defined(PXX2)
+      case ITEM_RADIO_SETUP_OWNER_ID:
+        lcdDrawText(MENUS_MARGIN_LEFT, y, STR_OWNER_ID);
+        editName(RADIO_SETUP_2ND_COLUMN, y, g_eeGeneral.ownerRegistrationID, PXX2_LEN_REGISTRATION_ID, event, attr);
+        break;
+#endif
       case ITEM_SETUP_BACKLIGHT_DELAY:
         lcdDrawText(MENUS_MARGIN_LEFT, y, STR_BLDELAY);
         lcdDrawNumber(RADIO_SETUP_2ND_COLUMN, y, g_eeGeneral.lightAutoOff*5, attr|LEFT, 0, NULL, "s");
@@ -379,6 +411,21 @@ bool menuRadioSetup(event_t event)
         lcdDrawText(MENUS_MARGIN_LEFT, y, STR_BLOFFBRIGHTNESS);
         g_eeGeneral.blOffBright = editSlider(RADIO_SETUP_2ND_COLUMN, y, event, g_eeGeneral.blOffBright, BACKLIGHT_LEVEL_MIN, BACKLIGHT_LEVEL_MAX, attr);
         break;
+
+#if defined(KEYS_BACKLIGHT_GPIO)
+      case ITEM_SETUP_KEYS_BACKLIGHT:
+        lcdDrawText(MENUS_MARGIN_LEFT + INDENT_WIDTH , y, STR_KEYS_BACKLIGHT);
+        g_eeGeneral.keysBacklight = editCheckBox(g_eeGeneral.keysBacklight, RADIO_SETUP_2ND_COLUMN, y, attr, event ) ;
+        break;
+#endif
+
+#if defined(PWR_BUTTON_PRESS)
+      case ITEM_SETUP_PWR_OFF_SPEED:
+        lcdDrawText(MENUS_MARGIN_LEFT, y, STR_PWR_OFF_DELAY);
+        lcdDrawNumber(RADIO_SETUP_2ND_COLUMN, y, 2 - g_eeGeneral.pwrOffSpeed, attr|LEFT, 0, NULL, "s");
+        if (attr) CHECK_INCDEC_GENVAR(event, g_eeGeneral.pwrOffSpeed, -1, 2);
+        break;
+#endif
 
       case ITEM_SETUP_LABEL_GPS:
         lcdDrawText(MENUS_MARGIN_LEFT, y, STR_GPS);
@@ -400,7 +447,7 @@ bool menuRadioSetup(event_t event)
         g_eeGeneral.gpsFormat = editChoice(RADIO_SETUP_2ND_COLUMN, y, STR_GPSFORMAT, g_eeGeneral.gpsFormat, 0, 1, attr, event);
         break;
 
-#if defined(PXX)
+#if defined(PXX1)
       case ITEM_SETUP_COUNTRYCODE:
         lcdDrawText(MENUS_MARGIN_LEFT, y, STR_COUNTRYCODE);
         g_eeGeneral.countryCode = editChoice(RADIO_SETUP_2ND_COLUMN, y, STR_COUNTRYCODES, g_eeGeneral.countryCode, 0, 2, attr, event);
@@ -433,8 +480,8 @@ bool menuRadioSetup(event_t event)
         else {
           g_eeGeneral.fai = editCheckBox(g_eeGeneral.fai, RADIO_SETUP_2ND_COLUMN, y, attr, event);
           if (attr && checkIncDec_Ret) {
-              g_eeGeneral.fai = false;
-              POPUP_CONFIRMATION("FAI mode?");
+            g_eeGeneral.fai = false;
+            POPUP_CONFIRMATION("FAI mode?", nullptr);
           }
         }
         break;
@@ -457,7 +504,7 @@ bool menuRadioSetup(event_t event)
         lcdDrawText(MENUS_MARGIN_LEFT, y, STR_RXCHANNELORD); // RAET->AETR
         char s[5];
         for (uint8_t i=0; i<4; i++) {
-          s[i] = STR_RETA123[channel_order(i+1)];
+          s[i] = STR_RETA123[channelOrder(i+1)];
         }
         s[4] = '\0';
         lcdDrawText(RADIO_SETUP_2ND_COLUMN, y, s, attr);
@@ -467,7 +514,7 @@ bool menuRadioSetup(event_t event)
 
       case ITEM_SETUP_STICK_MODE:
       {
-        lcdDrawText(MENUS_MARGIN_LEFT, y, NO_INDENT(STR_MODE));
+        lcdDrawText(MENUS_MARGIN_LEFT, y, STR_MODE);
         char s[2] = " ";
         s[0] = '1'+reusableBuffer.generalSettings.stickMode;
         lcdDrawText(RADIO_SETUP_2ND_COLUMN, y, s, attr);
@@ -480,9 +527,9 @@ bool menuRadioSetup(event_t event)
         else if (reusableBuffer.generalSettings.stickMode != g_eeGeneral.stickMode) {
           pausePulses();
           g_eeGeneral.stickMode = reusableBuffer.generalSettings.stickMode;
-          checkTHR();
+          checkThrottleStick();
           resumePulses();
-          clearKeyEvents();
+          waitKeysReleased();
         }
         break;
       }

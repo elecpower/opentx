@@ -86,7 +86,24 @@ static int luaModelSetInfo(lua_State *L)
 
 Get RF module parameters
 
-`rfProtocol` values:
+`Type` values:
+  * 0 NONE
+  * 1 PPM
+  * 2 XJT_PXX1
+  * 3 ISRM_PXX2
+  * 4 DSM2
+  * 5 CROSSFIRE
+  * 6 MULTIMODULE
+  * 7 R9M_PXX1
+  * 8 R9M_PXX2
+  * 9 R9M_LITE_PXX1
+  * 10 R9M_LITE_PXX2
+  * 11 R9M_LITE_PRO_PXX1
+  * 12 R9M_LITE_PRO_PXX2
+  * 13 SBUS
+  * 14 XJT_LITE_PXX2
+
+`subType` values for XJT_PXX1:
  * -1 OFF
  * 0 D16
  * 1 D8
@@ -97,10 +114,15 @@ Get RF module parameters
 @retval nil requested module does not exist
 
 @retval table module parameters:
- * `rfProtocol` (number) protocol index
+ * `subType` (number) protocol index
  * `modelId` (number) receiver number
  * `firstChannel` (number) start channel (0 is CH1)
  * `channelsCount` (number) number of channels sent to module
+ * `Type` (number) module type
+ * if the module type is Multi additional information are available
+ * `protocol` (number) protocol number
+ * `subProtocol` (number) sub-protocol number
+ * `channelsOrder` (number) first 4 channels expected order
 
 @status current Introduced in TODO
 */
@@ -110,10 +132,29 @@ static int luaModelGetModule(lua_State *L)
   if (idx < NUM_MODULES) {
     ModuleData & module = g_model.moduleData[idx];
     lua_newtable(L);
-    lua_pushtableinteger(L, "rfProtocol", module.rfProtocol);
+    lua_pushtableinteger(L, "subType", module.subType);
     lua_pushtableinteger(L, "modelId", g_model.header.modelId[idx]);
     lua_pushtableinteger(L, "firstChannel", module.channelsStart);
     lua_pushtableinteger(L, "channelsCount", module.channelsCount + 8);
+    lua_pushtableinteger(L, "Type", module.type);
+#if defined(MULTIMODULE)
+    if (module.type == MODULE_TYPE_MULTIMODULE) {
+      int protocol = g_model.moduleData[idx].getMultiProtocol() + 1;
+      int subprotocol = g_model.moduleData[idx].subType;
+      convertOtxProtocolToMulti(&protocol, &subprotocol); // Special treatment for the FrSky entry...
+      lua_pushtableinteger(L, "protocol", protocol);
+      lua_pushtableinteger(L, "subProtocol", subprotocol);
+      if (getMultiModuleStatus(idx).isValid()) {
+        if (getMultiModuleStatus(idx).ch_order == 0xFF)
+          lua_pushtableinteger(L, "channelsOrder", -1);
+        else
+          lua_pushtableinteger(L, "channelsOrder", getMultiModuleStatus(idx).ch_order);
+      }
+      else {
+        lua_pushtableinteger(L, "channelsOrder", -1);
+      }
+    }
+#endif
   }
   else {
     lua_pushnil(L);
@@ -145,8 +186,8 @@ static int luaModelSetModule(lua_State *L)
     for (lua_pushnil(L); lua_next(L, -2); lua_pop(L, 1)) {
       luaL_checktype(L, -2, LUA_TSTRING); // key is string
       const char * key = luaL_checkstring(L, -2);
-      if (!strcmp(key, "rfProtocol")) {
-        module.rfProtocol = luaL_checkinteger(L, -1);
+      if (!strcmp(key, "subType")) {
+        module.subType = luaL_checkinteger(L, -1);
       }
       else if (!strcmp(key, "modelId")) {
         g_model.header.modelId[idx] = luaL_checkinteger(L, -1);
@@ -182,8 +223,9 @@ Get model timer parameters
  * `countdownBeep` (number) countdown beep (0­ = silent, 1 =­ beeps, 2­ = voice)
  * `minuteBeep` (boolean) minute beep
  * `persistent` (number) persistent timer
+ * `name` (string) timer name
 
-@status current Introduced in 2.0.0
+@status current Introduced in 2.0.0, name added in 2.3.6
 */
 static int luaModelGetTimer(lua_State *L)
 {
@@ -197,6 +239,7 @@ static int luaModelGetTimer(lua_State *L)
     lua_pushtableinteger(L, "countdownBeep", timer.countdownBeep);
     lua_pushtableboolean(L, "minuteBeep", timer.minuteBeep);
     lua_pushtableinteger(L, "persistent", timer.persistent);
+    lua_pushtablezstring(L, "name", timer.name);
   }
   else {
     lua_pushnil(L);
@@ -216,7 +259,7 @@ Set model timer parameters
 @notice If a parameter is missing from the value, then
 that parameter remains unchanged.
 
-@status current Introduced in 2.0.0
+@status current Introduced in 2.0.0, name added in 2.3.6
 */
 static int luaModelSetTimer(lua_State *L)
 {
@@ -245,6 +288,10 @@ static int luaModelSetTimer(lua_State *L)
       }
       else if (!strcmp(key, "persistent")) {
         timer.persistent = luaL_checkinteger(L, -1);
+      }
+      if (!strcmp(key, "name")) {
+        const char * name = luaL_checkstring(L, -1);
+        str2zchar(timer.name, name, sizeof(timer.name));
       }
     }
     storageDirty(EE_MODEL);
@@ -317,6 +364,136 @@ static int luaModelGetInputsCount(lua_State *L)
 }
 
 /*luadoc
+@function model.deleteFlightModes()
+
+Clear all flightModes
+
+@status current Introduced in 2.3.10
+*/
+static int luaModelDeleteFlightModes(lua_State *L)
+{
+  memset(g_model.flightModeData, 0, sizeof(g_model.flightModeData));
+  return 0;
+}
+
+/*luadoc
+@function model.getFlightMode(index)
+
+@param index (unsigned number) flight mode number (use 0 for FM0)
+ 
+Return input data for given input and line number
+
+@retval nil requested input or line does not exist
+
+@retval table input data:
+ * `name` (string) input line name
+ * `switch` (number) input switch index
+ * `fadeIn` (number) fade in value (in 0.1s)
+ * `fadeOut` (number) fade out value (in 0.1s)
+ * `trimsValues` (table) table of trim values:
+   * `key` is trim number (zero based)
+   * `value` is trim value
+ * `trimsModes` (table) table of trim mode:
+   * `key` is trim number (zero based)
+   * `value` is trim mode
+
+@status current Introduced in 2.3.10
+*/
+static int luaModelGetFlightMode(lua_State * L)
+{
+  unsigned int idx = luaL_checkunsigned(L, 1);
+  if (idx < MAX_FLIGHT_MODES) {
+    FlightModeData * fm = flightModeAddress(idx);
+    lua_newtable(L);
+    lua_pushtablezstring(L, "name", fm->name);
+    lua_pushtableinteger(L, "switch", fm->swtch);
+    lua_pushtableinteger(L, "fadeIn", fm->fadeIn);
+    lua_pushtableinteger(L, "fadeOut", fm->fadeOut);
+    lua_pushstring(L, "trimsValues");
+    lua_newtable(L);
+    for (uint8_t i = 0; i < NUM_TRIMS; i++) {
+      lua_pushinteger(L, i);
+      lua_pushinteger(L, fm->trim[i].value);
+      lua_settable(L, -3);
+    }
+    lua_settable(L, -3);
+    lua_pushstring(L, "trimsModes");
+    lua_newtable(L);
+    for (uint8_t i = 0; i < NUM_TRIMS; i++) {
+      lua_pushinteger(L, i);
+      lua_pushinteger(L, fm->trim[i].mode);
+      lua_settable(L, -3);
+    }
+    lua_settable(L, -3);
+  }
+  else {
+    lua_pushnil(L);
+  }
+  return 1;
+}
+
+/*luadoc
+@function model.setFlightMode(index, params)
+
+Set Flight mode parameters
+
+@param index (unsigned number) flight mode number (use 0 for FM0)
+
+@param params see model.getFlightMode return format for table format.
+
+@status current Introduced in 2.3.10
+*/
+static int luaModelSetFlightMode(lua_State * L)
+{
+  unsigned int flightMode = luaL_checkunsigned(L, 1);
+
+  if (flightMode >= MAX_FLIGHT_MODES) {
+    lua_pushinteger(L, 2);
+    return 1;
+  }
+  FlightModeData * fm = flightModeAddress(flightMode);
+  luaL_checktype(L, -1, LUA_TTABLE);
+  for (lua_pushnil(L); lua_next(L, -2); lua_pop(L, 1)) {
+    luaL_checktype(L, -2, LUA_TSTRING); // key is string
+    const char * key = luaL_checkstring(L, -2);
+    if (!strcmp(key, "name")) {
+      const char * name = luaL_checkstring(L, -1);
+      str2zchar(fm->name, name, sizeof(fm->name));
+    }
+    else if (!strcmp(key, "switch")) {
+      fm->swtch = luaL_checkinteger(L, -1);
+    }
+    else if (!strcmp(key, "fadeIn")) {
+      fm->fadeIn = luaL_checkinteger(L, -1);
+    }
+    else if (!strcmp(key, "fadeOut")) {
+      fm->fadeOut = luaL_checkinteger(L, -1);
+    }
+    else if (!strcmp(key, "trimsValues")) {
+      luaL_checktype(L, -1, LUA_TTABLE);
+      uint8_t idx = 0;
+      for (lua_pushnil(L); lua_next(L, -2); lua_pop(L, 1), idx++) {
+        int16_t val = luaL_checkinteger(L, -1);
+        if (idx < NUM_TRIMS)
+          fm->trim[idx].value = (val & 0x3FF);
+      }
+    }
+    else if (!strcmp(key, "trimsModes")) {
+      luaL_checktype(L, -1, LUA_TTABLE);
+      uint8_t idx = 0;
+      for (lua_pushnil(L); lua_next(L, -2); lua_pop(L, 1), idx++) {
+        uint16_t val = luaL_checkinteger(L, -1);
+        if (idx < NUM_TRIMS)
+          fm->trim[idx].mode = (val & 0x1F);
+      }
+    }
+  }
+  storageDirty(EE_MODEL);
+  lua_pushinteger(L, 0);
+  return 1;
+}
+
+/*luadoc
 @function model.getInput(input, line)
 
 Return input data for given input and line number
@@ -329,14 +506,17 @@ Return input data for given input and line number
 
 @retval table input data:
  * `name` (string) input line name
+ * `inputName` (string) input input name
  * `source` (number) input source index
  * `weight` (number) input weight
  * `offset` (number) input offset
  * `switch` (number) input switch index
  * `curveType` (number) curve type (function, expo, custom curve)
  * `curveValue` (number) curve index
+ * `carryTrim` (boolean) input trims applied
+ * 'flightModes' (number) bit-mask of active flight modes
 
-@status current Introduced in 2.0.0, curveType/curveValue added in 2.3
+@status current Introduced in 2.0.0, curveType/curveValue/carryTrim added in 2.3, inputName added 2.3.10, flighmode reworked in 2.3.11
 */
 static int luaModelGetInput(lua_State *L)
 {
@@ -348,12 +528,15 @@ static int luaModelGetInput(lua_State *L)
     ExpoData * expo = expoAddress(first+idx);
     lua_newtable(L);
     lua_pushtablezstring(L, "name", expo->name);
+    lua_pushtablezstring(L, "inputName", g_model.inputNames[chn]);
     lua_pushtableinteger(L, "source", expo->srcRaw);
     lua_pushtableinteger(L, "weight", expo->weight);
     lua_pushtableinteger(L, "offset", expo->offset);
     lua_pushtableinteger(L, "switch", expo->swtch);
     lua_pushtableinteger(L, "curveType", expo->curve.type);
     lua_pushtableinteger(L, "curveValue", expo->curve.value);
+    lua_pushtableinteger(L, "carryTrim", expo->carryTrim);
+    lua_pushtableinteger(L, "flightModes", expo->flightModes);
   }
   else {
     lua_pushnil(L);
@@ -372,7 +555,7 @@ Insert an Input at specified line
 
 @param value (table) input data, see model.getInput()
 
-@status current Introduced in 2.0.0, curveType/curveValue added in 2.3
+@status current Introduced in 2.0.0, curveType/curveValue/carryTrim added in 2.3, inputName added 2.3.10
 */
 static int luaModelInsertInput(lua_State *L)
 {
@@ -395,6 +578,10 @@ static int luaModelInsertInput(lua_State *L)
         const char * name = luaL_checkstring(L, -1);
         str2zchar(expo->name, name, sizeof(expo->name));
       }
+      else if (!strcmp(key, "inputName")) {
+        const char * name = luaL_checkstring(L, -1);
+        str2zchar(g_model.inputNames[chn], name, LEN_INPUT_NAME);
+      }
       else if (!strcmp(key, "source")) {
         expo->srcRaw = luaL_checkinteger(L, -1);
       }
@@ -412,6 +599,12 @@ static int luaModelInsertInput(lua_State *L)
       }
       else if (!strcmp(key, "curveValue")) {
         expo->curve.value = luaL_checkinteger(L, -1);
+      }
+      else if (!strcmp(key, "carryTrim")) {
+        expo->carryTrim = lua_toboolean(L, -1);
+      }
+      else if (!strcmp(key, "flightModes")) {
+        expo->flightModes = luaL_checkinteger(L, -1);
       }
     }
   }
@@ -945,7 +1138,7 @@ static int luaModelSetCurve(lua_State *L)
       bool isX = !strcmp(key, "x");
 
       for (lua_pushnil(L); lua_next(L, -2); lua_pop(L, 1)) {
-        int idx = luaL_checkinteger(L, -2)-1;
+        int idx = luaL_checkinteger(L, -2) - 1;
         if (idx < 0 || idx > MAX_POINTS_PER_CURVE) {
           lua_pushinteger(L, 4);
           return 1;
@@ -1254,7 +1447,7 @@ static int luaModelSetOutput(lua_State *L)
 }
 
 /*luadoc
-@function model.getGlobalVariable(index [, flight_mode])
+@function model.getGlobalVariable(index, flight_mode)
 
 Return current global variable value
 
@@ -1366,6 +1559,9 @@ const luaL_Reg modelLib[] = {
   { "getTimer", luaModelGetTimer },
   { "setTimer", luaModelSetTimer },
   { "resetTimer", luaModelResetTimer },
+  { "deleteFlightModes", luaModelDeleteFlightModes },
+  { "getFlightMode", luaModelGetFlightMode },
+  { "setFlightMode", luaModelSetFlightMode },
   { "getInputsCount", luaModelGetInputsCount },
   { "getInput", luaModelGetInput },
   { "insertInput", luaModelInsertInput },

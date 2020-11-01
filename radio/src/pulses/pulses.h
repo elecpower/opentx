@@ -24,14 +24,12 @@
 #include "definitions.h"
 #include "dataconstants.h"
 #include "pulses_common.h"
-#include "pulses/pxx1.h"
-#include "pulses/pxx2.h"
-
-#if NUM_MODULES > 1
-  #define IS_RANGECHECK_ENABLE()             (moduleSettings[0].mode == MODULE_MODE_RANGECHECK || moduleSettings[1].mode == MODULE_MODE_RANGECHECK)
-#else
-  #define IS_RANGECHECK_ENABLE()             (moduleSettings[0].mode == MODULE_MODE_RANGECHECK)
-#endif
+#include "pxx1.h"
+#include "pxx2.h"
+#include "multi.h"
+#include "afhds3.h"
+#include "modules_helpers.h"
+#include "ff.h"
 
 #if defined(PCBSKY9X) && defined(DSM2)
   #define DSM2_BIND_TIMEOUT      255         // 255*11ms
@@ -59,35 +57,145 @@
   #define IS_MULTIMODULE_PROTOCOL(protocol)  (0)
 #endif
 
-#define IS_SBUS_PROTOCOL(protocol)         (protocol == PROTOCOL_CHANNELS_SBUS)
+#if defined(AFHDS3)
+#define IS_AFHDS3_PROTOCOL(protocol)         (protocol == PROTOCOL_CHANNELS_AFHDS3)
+#else
+#define IS_AFHDS3_PROTOCOL(protocol)         (0)
+#endif
 
 extern uint8_t s_pulses_paused;
 
-enum ModuleSettingsMode
-{
-  MODULE_MODE_NORMAL,
-  MODULE_MODE_SPECTRUM_ANALYSER,
-  MODULE_MODE_POWER_METER,
-  MODULE_MODE_GET_HARDWARE_INFO,
-  MODULE_MODE_MODULE_SETTINGS,
-  MODULE_MODE_RECEIVER_SETTINGS,
-  MODULE_MODE_BEEP_FIRST,
-  MODULE_MODE_REGISTER = MODULE_MODE_BEEP_FIRST,
-  MODULE_MODE_BIND,
-  MODULE_MODE_SHARE,
-  MODULE_MODE_RANGECHECK,
-  MODULE_MODE_RESET
+PACK(struct PXX2Version {
+  uint8_t major;
+  uint8_t revision:4;
+  uint8_t minor:4;
+});
+
+PACK(struct PXX2HardwareInformation {
+  uint8_t modelID;
+  PXX2Version hwVersion;
+  PXX2Version swVersion;
+  uint8_t variant;
+  uint32_t capabilities; // variable length
+  uint8_t capabilityNotSupported;
+});
+
+PACK(struct ModuleInformation {
+  int8_t current;
+  int8_t maximum;
+  uint8_t timeout;
+  PXX2HardwareInformation information;
+  struct {
+    PXX2HardwareInformation information;
+    tmr10ms_t timestamp;
+  } receivers[PXX2_MAX_RECEIVERS_PER_MODULE];
+});
+
+class ModuleSettings {
+  public:
+    uint8_t state;  // 0x00 = READ 0x40 = WRITE
+    tmr10ms_t timeout;
+    uint8_t externalAntenna;
+    int8_t txPower;
+    uint8_t dirty;
 };
 
-PACK(struct ModuleSettings {
+class ReceiverSettings {
+  public:
+    uint8_t state;  // 0x00 = READ 0x40 = WRITE
+    tmr10ms_t timeout;
+    uint8_t receiverId;
+    uint8_t dirty;
+    uint8_t telemetryDisabled;
+    uint8_t telemetry25mw;
+    uint8_t pwmRate;
+    uint8_t fport;
+    uint8_t enablePwmCh5Ch6;
+    uint8_t fport2;
+    uint8_t outputsCount;
+    uint8_t outputsMapping[24];
+};
+
+class BindInformation {
+  public:
+    int8_t step;
+    uint32_t timeout;
+    char candidateReceiversNames[PXX2_MAX_RECEIVERS_PER_MODULE][PXX2_LEN_RX_NAME + 1];
+    uint8_t candidateReceiversCount;
+    uint8_t selectedReceiverIndex;
+    uint8_t rxUid;
+    uint8_t lbtMode;
+    uint8_t flexMode;
+    PXX2HardwareInformation receiverInformation;
+};
+
+class OtaUpdateInformation: public BindInformation {
+  public:
+    char filename[_MAX_LFN + 1];
+    uint32_t address;
+    uint32_t module;
+};
+
+typedef void (* ModuleCallback)();
+
+PACK(struct ModuleState {
   uint8_t protocol:4;
   uint8_t mode:4;
   uint8_t paused:1;
   uint8_t spare:7;
   uint16_t counter;
+  union
+  {
+    ModuleInformation * moduleInformation;
+    ModuleSettings * moduleSettings;
+    ReceiverSettings * receiverSettings;
+    BindInformation * bindInformation;
+    OtaUpdateInformation * otaUpdateInformation;
+  };
+  ModuleCallback callback;
+
+  void startBind(BindInformation * destination, ModuleCallback bindCallback = nullptr);
+
+  void readModuleInformation(ModuleInformation * destination, int8_t first, int8_t last)
+  {
+    moduleInformation = destination;
+    moduleInformation->current = first;
+    moduleInformation->maximum = last;
+    mode = MODULE_MODE_GET_HARDWARE_INFO;
+  }
+
+  void readModuleSettings(ModuleSettings * destination)
+  {
+    moduleSettings = destination;
+    moduleSettings->state = PXX2_SETTINGS_READ;
+    mode = MODULE_MODE_MODULE_SETTINGS;
+  }
+
+  void writeModuleSettings(ModuleSettings * source)
+  {
+    moduleSettings = source;
+    moduleSettings->state = PXX2_SETTINGS_WRITE;
+    moduleSettings->timeout = 0;
+    mode = MODULE_MODE_MODULE_SETTINGS;
+  }
+
+  void readReceiverSettings(ReceiverSettings * destination)
+  {
+    receiverSettings = destination;
+    receiverSettings->state = PXX2_SETTINGS_READ;
+    mode = MODULE_MODE_RECEIVER_SETTINGS;
+  }
+
+  void writeReceiverSettings(ReceiverSettings * source)
+  {
+    receiverSettings = source;
+    receiverSettings->state = PXX2_SETTINGS_WRITE;
+    receiverSettings->timeout = 0;
+    mode = MODULE_MODE_RECEIVER_SETTINGS;
+  }
 });
 
-extern ModuleSettings moduleSettings[NUM_MODULES];
+extern ModuleState moduleState[NUM_MODULES];
 
 template<class T> struct PpmPulsesData {
   T pulses[20];
@@ -130,34 +238,44 @@ PACK(struct CrossfirePulsesData {
   uint8_t length;
 });
 
+#define GHOST_FRAME_MAXLEN             16
+PACK(struct GhostPulsesData {
+  uint8_t pulses[GHOST_FRAME_MAXLEN];
+  uint8_t length;
+});
+
 union InternalModulePulsesData {
 #if defined(PXX1)
-  #if defined(INTMODULE_USART)
-    UartPxx1Pulses pxx_uart;
-  #else
-    PwmPxx1Pulses pxx;
-  #endif
+#if defined(INTMODULE_USART)
+  UartPxx1Pulses pxx_uart;
+#else
+  PwmPxx1Pulses pxx;
+#endif
 #endif
 
 #if defined(PXX2)
   Pxx2Pulses pxx2;
 #endif
 
-#if defined(TARANIS_INTERNAL_PPM)
+#if defined(MULTIMODULE) //&& defined(INTMODULE_USART)
+  UartMultiPulses multi;
+#endif
+
+#if defined(INTERNAL_MODULE_PPM)
   PpmPulsesData<pulse_duration_t> ppm;
 #endif
 } __ALIGNED(4);
 
 union ExternalModulePulsesData {
 #if defined(PXX1)
-  #if defined(EXTMODULE_USART)
-    UartPxx1Pulses pxx_uart;
-  #endif
-  #if defined(PPM_PIN_SERIAL)
-    SerialPxx1Pulses pxx;
-  #else
-    PwmPxx1Pulses pxx;
-  #endif
+#if defined(HARDWARE_EXTERNAL_MODULE_SIZE_SML)
+  UartPxx1Pulses pxx_uart;
+#endif
+#if defined(PPM_PIN_SERIAL)
+  SerialPxx1Pulses pxx;
+#else
+  PwmPxx1Pulses pxx;
+#endif
 #endif
 
 #if defined(PXX2)
@@ -168,9 +286,15 @@ union ExternalModulePulsesData {
   Dsm2PulsesData dsm2;
 #endif
 
+#if defined(AFHDS3)
+  afhds3::PulsesData afhds3;
+#endif
+
   PpmPulsesData<pulse_duration_t> ppm;
 
   CrossfirePulsesData crossfire;
+
+  GhostPulsesData ghost;
 } __ALIGNED(4);
 
 /* The __ALIGNED keyword is required to align the struct inside the modulePulsesData below,
@@ -189,10 +313,15 @@ union TrainerPulsesData {
 
 extern TrainerPulsesData trainerPulsesData;
 
-bool setupPulses(uint8_t module);
+#if defined(HARDWARE_INTERNAL_MODULE)
+bool setupPulsesInternalModule();
+#endif
+bool setupPulsesExternalModule();
 void setupPulsesDSM2();
 void setupPulsesCrossfire();
-void setupPulsesMultimodule();
+void setupPulsesGhost();
+void setupPulsesMultiExternalModule();
+void setupPulsesMultiInternalModule();
 void setupPulsesSbus();
 void setupPulsesPPMInternalModule();
 void setupPulsesPPMExternalModule();
@@ -201,24 +330,33 @@ void sendByteDsm2(uint8_t b);
 void putDsm2Flush();
 void putDsm2SerialBit(uint8_t bit);
 void sendByteSbus(uint8_t b);
-
-#if defined(HUBSAN)
-void Hubsan_Init();
+void intmodulePpmStart();
+void intmodulePxx1PulsesStart();
+void intmodulePxx1SerialStart();
+void extmodulePxx1PulsesStart();
+void extmodulePxx1SerialStart();
+void extmodulePpmStart();
+void intmoduleStop();
+void extmoduleStop();
+void getModuleStatusString(uint8_t moduleIdx, char * statusText);
+void getModuleSyncStatusString(uint8_t moduleIdx, char * statusText);
+#if defined(AFHDS3)
+uint8_t actualAfhdsRunPower(int moduleIndex);
 #endif
+void extramodulePpmStart();
 
 inline void startPulses()
 {
   s_pulses_paused = false;
 
-#if defined(PCBTARANIS) || defined(PCBHORUS)
-  setupPulses(INTERNAL_MODULE);
-  setupPulses(EXTERNAL_MODULE);
-#else
-  setupPulses(EXTERNAL_MODULE);
+#if defined(HARDWARE_INTERNAL_MODULE)
+  setupPulsesInternalModule();
 #endif
 
-#if defined(HUBSAN)
-  Hubsan_Init();
+  setupPulsesExternalModule();
+
+#if defined(HARDWARE_EXTRA_MODULE)
+  extramodulePpmStart();
 #endif
 }
 
@@ -226,31 +364,50 @@ enum ChannelsProtocols {
   PROTOCOL_CHANNELS_UNINITIALIZED,
   PROTOCOL_CHANNELS_NONE,
   PROTOCOL_CHANNELS_PPM,
-#if defined(PXX) || defined(DSM2)
   PROTOCOL_CHANNELS_PXX1_PULSES,
   PROTOCOL_CHANNELS_PXX1_SERIAL,
-#endif
-#if defined(DSM2)
   PROTOCOL_CHANNELS_DSM2_LP45,
   PROTOCOL_CHANNELS_DSM2_DSM2,
   PROTOCOL_CHANNELS_DSM2_DSMX,
-#endif
   PROTOCOL_CHANNELS_CROSSFIRE,
   PROTOCOL_CHANNELS_MULTIMODULE,
   PROTOCOL_CHANNELS_SBUS,
-  PROTOCOL_CHANNELS_PXX2
+  PROTOCOL_CHANNELS_PXX2_LOWSPEED,
+  PROTOCOL_CHANNELS_PXX2_HIGHSPEED,
+  PROTOCOL_CHANNELS_AFHDS3,
+  PROTOCOL_CHANNELS_GHOST
 };
 
-inline bool pulsesStarted() { return moduleSettings[0].protocol != PROTOCOL_CHANNELS_UNINITIALIZED; }
-inline void pausePulses() { s_pulses_paused = true; }
-inline void resumePulses() { s_pulses_paused = false; }
+inline void stopPulses()
+{
+  s_pulses_paused = true;
+  moduleState[0].protocol = PROTOCOL_CHANNELS_UNINITIALIZED;
+}
 
-#define SEND_FAILSAFE_NOW(idx) moduleSettings[idx].counter = 1
+inline bool pulsesStarted()
+{
+  return moduleState[0].protocol != PROTOCOL_CHANNELS_UNINITIALIZED;
+}
+
+inline void pausePulses()
+{
+  s_pulses_paused = true;
+}
+
+inline void resumePulses()
+{
+  s_pulses_paused = false;
+}
+
+inline void SEND_FAILSAFE_NOW(uint8_t idx)
+{
+  moduleState[idx].counter = 1;
+}
 
 inline void SEND_FAILSAFE_1S()
 {
-  for (int i=0; i<NUM_MODULES; i++) {
-    moduleSettings[i].counter = 100;
+  for (uint8_t i=0; i<NUM_MODULES; i++) {
+    moduleState[i].counter = 100;
   }
 }
 
@@ -258,60 +415,30 @@ inline void SEND_FAILSAFE_1S()
 // for channels not set previously to HOLD or NOPULSE
 void setCustomFailsafe(uint8_t moduleIndex);
 
-#if defined(PCBXLITE) && !defined(MODULE_R9M_FULLSIZE)
-#define LEN_R9M_REGION                 "\006"
-#define TR_R9M_REGION                  "FCC\0  ""EU\0   ""868MHz""915MHz"
-#define LEN_R9M_FCC_POWER_VALUES       "\010"
-#define LEN_R9M_LBT_POWER_VALUES       "\015"
-#define TR_R9M_FCC_POWER_VALUES        "(100 mW)"
-#define TR_R9M_LBT_POWER_VALUES        "25 mW 8ch\0   ""25 mW 16ch\0  ""100mW no tele"
-#define LEN_R9MFLEX_FREQ               "\006"
-#define TR_R9MFLEX_FREQ                "868Mhz""915Mhz"
+inline bool isModuleInRangeCheckMode()
+{
+  if (moduleState[0].mode == MODULE_MODE_RANGECHECK)
+    return true;
 
-enum R9MFCCPowerValues {
-  R9M_FCC_POWER_100 = 0,
-  R9M_FCC_POWER_MAX = R9M_FCC_POWER_100
-};
-
-enum R9MLBTPowerValues {
-  R9M_LBT_POWER_25 = 0,
-  R9M_LBT_POWER_25_16,
-  R9M_LBT_POWER_100,
-  R9M_LBT_POWER_MAX = R9M_LBT_POWER_100
-};
-
-#define BIND_TELEM_ALLOWED(idx)      (!(IS_TELEMETRY_INTERNAL_MODULE() && moduleIdx == EXTERNAL_MODULE) && (!isModuleR9M_LBT(idx) || g_model.moduleData[idx].pxx.power < R9M_LBT_POWER_100))
-#define BIND_CH9TO16_ALLOWED(idx)    (!isModuleR9M_LBT(idx) || g_model.moduleData[idx].pxx.power != R9M_LBT_POWER_25)
-
-#else
-
-#define LEN_R9M_REGION                 "\004"
-#define TR_R9M_REGION                  "FCC\0""EU\0 ""FLEX"
-#define LEN_R9MFLEX_FREQ               "\006"
-#define TR_R9MFLEX_FREQ                "868Mhz""915Mhz"
-#define LEN_R9M_FCC_POWER_VALUES       "\006"
-#define LEN_R9M_LBT_POWER_VALUES       "\013"
-#define TR_R9M_FCC_POWER_VALUES        "10 mW\0" "100 mW" "500 mW" "1 W\0"
-#define TR_R9M_LBT_POWER_VALUES        "25 mW 8ch\0 ""25 mW 16ch\0" "200 mW 16ch" "500 mW 16ch"
-
-enum R9MFCCPowerValues {
-  R9M_FCC_POWER_10 = 0,
-  R9M_FCC_POWER_100,
-  R9M_FCC_POWER_500,
-  R9M_FCC_POWER_1000,
-  R9M_FCC_POWER_MAX = R9M_FCC_POWER_1000
-};
-
-enum R9MLBTPowerValues {
-  R9M_LBT_POWER_25 = 0,
-  R9M_LBT_POWER_25_16,
-  R9M_LBT_POWER_200,
-  R9M_LBT_POWER_500,
-  R9M_LBT_POWER_MAX = R9M_LBT_POWER_500
-};
-
-#define BIND_TELEM_ALLOWED(idx)      (!(IS_TELEMETRY_INTERNAL_MODULE() && moduleIdx == EXTERNAL_MODULE) && (!isModuleR9M_LBT(idx) || g_model.moduleData[idx].pxx.power < R9M_LBT_POWER_200))
-#define BIND_CH9TO16_ALLOWED(idx)    (!isModuleR9M_LBT(idx) || g_model.moduleData[idx].pxx.power != R9M_LBT_POWER_25)
+#if NUM_MODULES > 1
+  if (moduleState[1].mode == MODULE_MODE_RANGECHECK)
+    return true;
 #endif
+
+  return false;
+}
+
+inline bool isModuleInBeepMode()
+{
+  if (moduleState[0].mode >= MODULE_MODE_BEEP_FIRST)
+    return true;
+
+#if NUM_MODULES > 1
+  if (moduleState[1].mode >= MODULE_MODE_BEEP_FIRST)
+    return true;
+#endif
+
+  return false;
+}
 
 #endif // _PULSES_H_

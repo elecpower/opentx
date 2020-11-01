@@ -30,9 +30,13 @@ void serialPutc(char c) {
   if (getSelectedUsbMode() == USB_SERIAL_MODE)
     usbSerialPutc(c);
 #endif
-#if defined(SERIAL2)
-  if (serial2TracesEnabled())
-    serial2Putc(c);
+#if defined(AUX_SERIAL)
+  if (auxSerialTracesEnabled())
+    auxSerialPutc(c);
+#endif
+#if defined(AUX2_SERIAL)
+  if (aux2SerialTracesEnabled())
+    aux2SerialPutc(c);
 #endif
 }
 

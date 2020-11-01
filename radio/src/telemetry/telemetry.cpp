@@ -18,16 +18,13 @@
  * GNU General Public License for more details.
  */
 
-#include <opentx.h>
+#include "opentx.h"
+#include "multi.h"
+#include "pulses/afhds3.h"
 
 uint8_t telemetryStreaming = 0;
-uint8_t R9ModuleStreaming = 0;
 uint8_t telemetryRxBuffer[TELEMETRY_RX_PACKET_SIZE];   // Receive buffer. 9 bytes (full packet), worst case 18 bytes with byte-stuffing (+1)
 uint8_t telemetryRxBufferCount = 0;
-
-#if defined(WS_HOW_HIGH)
-uint8_t wshhStreaming = 0;
-#endif
 
 uint8_t telemetryState = TELEMETRY_INIT;
 
@@ -48,17 +45,31 @@ void processTelemetryData(uint8_t data)
   }
 #endif
 
+#if defined(GHOST)
+  if (telemetryProtocol == PROTOCOL_TELEMETRY_GHOST) {
+    processGhostTelemetryData(data);
+    return;
+  }
+#endif
+
 #if defined(MULTIMODULE)
   if (telemetryProtocol == PROTOCOL_TELEMETRY_SPEKTRUM) {
-    processSpektrumTelemetryData(data);
+    processSpektrumTelemetryData(EXTERNAL_MODULE, data, telemetryRxBuffer, telemetryRxBufferCount);
     return;
   }
   if (telemetryProtocol == PROTOCOL_TELEMETRY_FLYSKY_IBUS) {
-    processFlySkyTelemetryData(data);
+    processFlySkyTelemetryData(data, telemetryRxBuffer, telemetryRxBufferCount);
     return;
   }
   if (telemetryProtocol == PROTOCOL_TELEMETRY_MULTIMODULE) {
-    processMultiTelemetryData(data);
+    processMultiTelemetryData(data, EXTERNAL_MODULE);
+    return;
+  }
+#endif
+
+#if defined(AFHDS3)
+  if (telemetryProtocol == PROTOCOL_TELEMETRY_AFHDS3) {
+    afhds3::processTelemetryData(EXTERNAL_MODULE, data, telemetryRxBuffer, telemetryRxBufferCount, TELEMETRY_RX_PACKET_SIZE);
     return;
   }
 #endif
@@ -71,10 +82,10 @@ inline bool isBadAntennaDetected()
   if (!isRasValueValid())
     return false;
 
-  if (telemetryData.swrInternal.isFresh() && telemetryData.swrInternal.value > FRSKY_BAD_ANTENNA_THRESHOLD)
+  if (telemetryData.swrInternal.isFresh() && telemetryData.swrInternal.value() > FRSKY_BAD_ANTENNA_THRESHOLD)
     return true;
 
-  if (telemetryData.swrExternal.isFresh() && telemetryData.swrExternal.value > FRSKY_BAD_ANTENNA_THRESHOLD)
+  if (telemetryData.swrExternal.isFresh() && telemetryData.swrExternal.value() > FRSKY_BAD_ANTENNA_THRESHOLD)
     return true;
 
   return false;
@@ -83,6 +94,7 @@ inline bool isBadAntennaDetected()
 void telemetryWakeup()
 {
   uint8_t requiredTelemetryProtocol = modelTelemetryProtocol();
+  uint8_t data;
 
 #if defined(REVX)
   uint8_t requiredSerialInversion = g_model.moduleData[EXTERNAL_MODULE].invertedSerial;
@@ -96,24 +108,33 @@ void telemetryWakeup()
   }
 #endif
 
-#if defined(INTMODULE_USART) || defined(EXTMODULE_USART)
+#if defined(INTERNAL_MODULE_PXX2) || defined(EXTMODULE_USART)
   uint8_t frame[PXX2_FRAME_MAXLENGTH];
 
-  #if defined(INTMODULE_USART)
-    while (intmoduleFifo.getFrame(frame)) {
-      processPXX2Frame(INTERNAL_MODULE, frame);
-    }
+  #if defined(INTERNAL_MODULE_PXX2)
+  while (intmoduleFifo.getFrame(frame)) {
+    processPXX2Frame(INTERNAL_MODULE, frame);
+  }
   #endif
 
   #if defined(EXTMODULE_USART)
-    while (extmoduleFifo.getFrame(frame)) {
-      processPXX2Frame(EXTERNAL_MODULE, frame);
-    }
+  while (isModulePXX2(EXTERNAL_MODULE) && extmoduleFifo.getFrame(frame)) {
+    processPXX2Frame(EXTERNAL_MODULE, frame);
+  }
   #endif
 #endif
 
+#if defined(INTERNAL_MODULE_MULTI)
+  if (intmoduleFifo.pop(data)) {
+    LOG_TELEMETRY_WRITE_START();
+    do {
+      processMultiTelemetryData(data, INTERNAL_MODULE);
+      LOG_TELEMETRY_WRITE_BYTE(data);
+    } while (intmoduleFifo.pop(data));
+  }
+#endif
+
 #if defined(STM32)
-  uint8_t data;
   if (telemetryGetByte(&data)) {
     LOG_TELEMETRY_WRITE_START();
     do {
@@ -123,7 +144,6 @@ void telemetryWakeup()
   }
 #elif defined(PCBSKY9X)
   if (telemetryProtocol == PROTOCOL_TELEMETRY_FRSKY_D_SECONDARY) {
-    uint8_t data;
     while (telemetrySecondPortReceive(data)) {
       processTelemetryData(data);
     }
@@ -153,20 +173,21 @@ void telemetryWakeup()
 
     SCHEDULE_NEXT_ALARMS_CHECK(1/*second*/);
 
-    bool sensor_lost = false;
+    bool sensorLost = false;
     for (int i=0; i<MAX_TELEMETRY_SENSORS; i++) {
       if (isTelemetryFieldAvailable(i)) {
         TelemetryItem & item = telemetryItems[i];
-        if (item.hasReceiveTime() && item.getDelaySinceLastValue() > TELEMETRY_VALUE_OLD_THRESHOLD) {
+        if (item.timeout == 0) {
           TelemetrySensor * sensor = & g_model.telemetrySensors[i];
           if (sensor->unit != UNIT_DATETIME) {
             item.setOld();
-            sensor_lost = true;
+            sensorLost = true;
           }
         }
       }
     }
-    if (sensor_lost && TELEMETRY_STREAMING() &&  !g_model.rssiAlarms.disabled) {
+
+    if (sensorLost && TELEMETRY_STREAMING() && !g_model.rssiAlarms.disabled) {
       audioEvent(AU_SENSOR_LOST);
     }
 
@@ -195,12 +216,19 @@ void telemetryWakeup()
       if (TELEMETRY_STREAMING()) {
         if (telemetryState == TELEMETRY_KO) {
           AUDIO_TELEMETRY_BACK();
+#if defined(CROSSFIRE)
+          if (isModuleCrossfire(EXTERNAL_MODULE)) {
+            moduleState[EXTERNAL_MODULE].counter = CRSF_FRAME_MODELID;
+          }
+#endif
         }
         telemetryState = TELEMETRY_OK;
       }
       else if (telemetryState == TELEMETRY_OK) {
         telemetryState = TELEMETRY_KO;
-        AUDIO_TELEMETRY_LOST();
+        if (!isModuleInBeepMode()) {
+          AUDIO_TELEMETRY_LOST();
+        }
       }
     }
   }
@@ -208,46 +236,40 @@ void telemetryWakeup()
 
 void telemetryInterrupt10ms()
 {
-
-  if (TELEMETRY_STREAMING()) {
-    if (!TELEMETRY_OPENXSENSOR()) {
-      for (int i=0; i<MAX_TELEMETRY_SENSORS; i++) {
-        const TelemetrySensor & sensor = g_model.telemetrySensors[i];
-        if (sensor.type == TELEM_TYPE_CALCULATED) {
-          telemetryItems[i].per10ms(sensor);
-        }
+  if (telemetryStreaming > 0) {
+    bool tick160ms = (telemetryStreaming & 0x0F) == 0;
+    for (int i=0; i<MAX_TELEMETRY_SENSORS; i++) {
+      const TelemetrySensor & sensor = g_model.telemetrySensors[i];
+      if (sensor.type == TELEM_TYPE_CALCULATED) {
+        telemetryItems[i].per10ms(sensor);
+      }
+      if (tick160ms && telemetryItems[i].timeout > 0) {
+        telemetryItems[i].timeout--;
       }
     }
-
-  }
-
-#if defined(WS_HOW_HIGH)
-  if (wshhStreaming > 0) {
-    wshhStreaming--;
-  }
-#endif
-  if (R9ModuleStreaming > 0) {
-    R9ModuleStreaming--;
-  }
-  if (telemetryStreaming > 0) {
     telemetryStreaming--;
   }
   else {
 #if !defined(SIMU)
     telemetryData.rssi.reset();
 #endif
+    for (auto & telemetryItem: telemetryItems) {
+      if (telemetryItem.isAvailable()) {
+        telemetryItem.setOld();
+      }
+    }
   }
 }
 
 void telemetryReset()
 {
-  memclear(&telemetryData, sizeof(telemetryData));
+  telemetryData.clear();
 
-  for (int index=0; index<MAX_TELEMETRY_SENSORS; index++) {
-    telemetryItems[index].clear();
+  for (auto & telemetryItem : telemetryItems) {
+    telemetryItem.clear();
   }
 
-  telemetryStreaming = 0; // reset counter only if valid frsky packets are being detected
+  telemetryStreaming = 0; // reset counter only if valid telemetry packets are being detected
 
   telemetryState = TELEMETRY_INIT;
 }
@@ -266,8 +288,7 @@ void telemetryInit(uint8_t protocol)
     // The DIY Multi module always speaks 100000 baud regardless of the telemetry protocol in use
     telemetryPortInit(MULTIMODULE_BAUDRATE, TELEMETRY_SERIAL_8E2);
 #if defined(LUA)
-    outputTelemetryBuffer.size = 0;
-    outputTelemetryBuffer.trigger = 0x7E;
+    outputTelemetryBuffer.reset();
 #endif
   }
   else if (protocol == PROTOCOL_TELEMETRY_SPEKTRUM) {
@@ -280,26 +301,36 @@ void telemetryInit(uint8_t protocol)
   else if (protocol == PROTOCOL_TELEMETRY_CROSSFIRE) {
     telemetryPortInit(CROSSFIRE_BAUDRATE, TELEMETRY_SERIAL_DEFAULT);
 #if defined(LUA)
-    outputTelemetryBufferSize = 0;
-    outputTelemetryBufferTrigger = 0;
+    outputTelemetryBuffer.reset();
 #endif
     telemetryPortSetDirectionOutput();
   }
 #endif
 
-#if defined(SERIAL2) || defined(PCBSKY9X)
-  else if (protocol == PROTOCOL_TELEMETRY_FRSKY_D_SECONDARY) {
-    telemetryPortInit(0, TELEMETRY_SERIAL_DEFAULT);
-    serial2TelemetryInit(PROTOCOL_TELEMETRY_FRSKY_D_SECONDARY);
-  }
-#endif
-
-  else if (protocol == PROTOCOL_TELEMETRY_PXX2) {
-    telemetryPortInit(PXX2_ON_SPORT_BAUDRATE, TELEMETRY_SERIAL_WITHOUT_DMA);
+#if defined(GHOST)
+  else if (protocol == PROTOCOL_TELEMETRY_GHOST) {
+    telemetryPortInit(GHOST_BAUDRATE, TELEMETRY_SERIAL_DEFAULT);
 #if defined(LUA)
     outputTelemetryBuffer.reset();
 #endif
+    telemetryPortSetDirectionOutput();
   }
+#endif
+
+#if defined(AUX_SERIAL) || defined(PCBSKY9X)
+  else if (protocol == PROTOCOL_TELEMETRY_FRSKY_D_SECONDARY) {
+    telemetryPortInit(0, TELEMETRY_SERIAL_DEFAULT);
+    auxSerialTelemetryInit(PROTOCOL_TELEMETRY_FRSKY_D_SECONDARY);
+  }
+#endif
+
+#if defined(AFHDS3) && !defined(SIMU)
+  else if (protocol == PROTOCOL_TELEMETRY_AFHDS3) {
+    telemetryPortInvertedInit(AFHDS3_BAUDRATE);
+    telemetryPortSetDirectionInput();
+  }
+#endif
+
   else {
     telemetryPortInit(FRSKY_SPORT_BAUDRATE, TELEMETRY_SERIAL_WITHOUT_DMA);
 #if defined(LUA)

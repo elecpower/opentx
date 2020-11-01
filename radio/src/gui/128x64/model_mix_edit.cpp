@@ -85,10 +85,21 @@ void drawOffsetBar(uint8_t x, uint8_t y, MixData * md)
 
 void menuModelMixOne(event_t event)
 {
+#if defined(NAVIGATION_X7)
+  if (event == EVT_KEY_LONG(KEY_MENU)) {
+    pushMenu(menuChannelsView);
+    killEvents(event);
+  }
+#elif defined(NAVIGATION_XLITE)
+  if (event == EVT_KEY_FIRST(KEY_ENTER) && IS_SHIFT_PRESSED()) {
+    pushMenu(menuChannelsView);
+    killEvents(event);
+  }
+#endif
   MixData * md2 = mixAddress(s_currIdx) ;
-  putsChn(PSIZE(TR_MIXER)*FW+FW, 0, md2->destCh+1,0);
+  putsChn(PSIZE(TR_MIXES)*FW+FW, 0, md2->destCh+1,0);
   
-  SUBMENU(STR_MIXER, MIX_FIELD_COUNT, {0, 0, 0, 0, 0, 1, CASE_FLIGHT_MODES((MAX_FLIGHT_MODES-1) | NAVIGATION_LINE_BY_LINE) 0, 0 /*, ...*/});
+  SUBMENU(STR_MIXES, MIX_FIELD_COUNT, {0, 0, 0, 0, 0, 1, CASE_FLIGHT_MODES((MAX_FLIGHT_MODES-1) | NAVIGATION_LINE_BY_LINE) 0, 0 /*, ...*/});
   
   int8_t sub = menuVerticalPosition;
   int8_t editMode = s_editMode;
@@ -110,7 +121,7 @@ void menuModelMixOne(event_t event)
         break;
 
       case MIX_FIELD_SOURCE:
-        lcdDrawTextAlignedLeft(y, NO_INDENT(STR_SOURCE));
+        lcdDrawTextAlignedLeft(y, STR_SOURCE);
         drawSource(MIXES_2ND_COLUMN, y, md2->srcRaw, STREXPANDED|attr);
         if (attr) CHECK_INCDEC_MODELSOURCE(event, md2->srcRaw, 1, MIXSRC_LAST);
         break;
@@ -122,7 +133,7 @@ void menuModelMixOne(event_t event)
 
       case MIX_FIELD_OFFSET:
       {
-        lcdDrawTextAlignedLeft(y, NO_INDENT(STR_OFFSET));
+        lcdDrawTextAlignedLeft(y, STR_OFFSET);
         u_int8int16_t offset;
         MD_OFFSET_TO_UNION(md2, offset);
         offset.word = GVAR_MENU_ITEM(MIXES_2ND_COLUMN, y, offset.word, GV_RANGELARGE_OFFSET_NEG, GV_RANGELARGE_OFFSET, attr|LEFT, 0, event);
@@ -139,7 +150,9 @@ void menuModelMixOne(event_t event)
 
       case MIX_FIELD_CURVE:
         lcdDrawTextAlignedLeft(y, STR_CURVE);
-        editCurveRef(MIXES_2ND_COLUMN, y, md2->curve, event, attr);
+        s_currSrcRaw = md2->srcRaw;
+        s_currScale = 0;
+        editCurveRef(MIXES_2ND_COLUMN, y, md2->curve, s_editMode > 0 ? event : 0, attr);
         break;
 
 #if defined(FLIGHT_MODES)

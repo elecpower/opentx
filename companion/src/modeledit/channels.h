@@ -26,6 +26,8 @@
 
 #include <QtCore>
 
+constexpr char MIMETYPE_CHANNEL[] = "application/x-companion-channel";
+
 class GVarGroup;
 
 class LimitsGroup
@@ -66,13 +68,23 @@ class Channels : public ModelPanel
     void ppmcenterEdited();
     void update();
     void updateLine(int index);
-    void chnDelete();
-    void chnCopy();
-    void chnPaste();
-    void chnCut();
-    void chn_customContextMenuRequested(QPoint pos);
+    void cmDelete();
+    void cmCopy();
+    void cmPaste();
+    void cmCut();
+    void cmMoveUp();
+    void cmMoveDown();
+    void cmInsert();
+    void cmClear(bool prompt = true);
+    void cmClearAll();
+    void onCustomContextMenuRequested(QPoint pos);
 
   private:
+    bool hasClipboardData(QByteArray * data = nullptr) const;
+    bool insertAllowed() const;
+    bool moveDownAllowed() const;
+    bool moveUpAllowed() const;
+    void swapData(int idx1, int idx2);
     QLineEdit *name[CPN_MAX_CHNOUT];
     LimitsGroup *chnOffset[CPN_MAX_CHNOUT];
     LimitsGroup *chnMin[CPN_MAX_CHNOUT];
@@ -81,7 +93,8 @@ class Channels : public ModelPanel
     QComboBox *curveCB[CPN_MAX_CHNOUT];
     QSpinBox *centerSB[CPN_MAX_CHNOUT];
     QCheckBox *symlimitsChk[CPN_MAX_CHNOUT];
-    int selectedChannel;
+    int selectedIndex;
+    int chnCapability;
 };
 
 #endif // _CHANNELS_H_

@@ -100,6 +100,8 @@ enum Capability {
   GvarsName,
   NoTelemetryProtocol,
   TelemetryCustomScreens,
+  TelemetryCustomScreensBars,
+  TelemetryCustomScreensLines,
   TelemetryCustomScreensFieldsPerLine,
   TelemetryMaxMultiplier,
   HasVario,
@@ -107,6 +109,7 @@ enum Capability {
   HasFailsafe,
   HasSoundMixer,
   NumModules,
+  NumFirstUsableModule,
   HasModuleR9MFlex,
   HasModuleR9MMini,
   PPMCenter,
@@ -147,7 +150,10 @@ enum Capability {
   HasBatMeterRange,
   DangerousFunctions,
   HasModelCategories,
-  HasSwitchableJack
+  HasSwitchableJack,
+  HasSportConnector,
+  PwrButtonPress,
+  Sensors
 };
 
 class EEPROMInterface
@@ -176,7 +182,7 @@ class EEPROMInterface
     virtual int getSize(const GeneralSettings &) = 0;
 
     //static void showEepromErrors(QWidget *parent, const QString &title, const QString &mainMessage, unsigned long errorsFound);
-    static void showEepromWarnings(QWidget *parent, const QString &title, unsigned long errorsFound);
+    static QString getEepromWarnings(unsigned long errorsFound);
 
   protected:
 
@@ -230,10 +236,7 @@ enum EepromLoadErrors {
   WRONG_SIZE,
   WRONG_FILE_SYSTEM,
   NOT_OPENTX,
-  NOT_TH9X,
-  NOT_GRUVIN9X,
   NOT_ERSKY9X,
-  NOT_ER9X,
   UNKNOWN_BOARD,
   WRONG_BOARD,
   BACKUP_NOT_SUPPORTED,
@@ -343,7 +346,7 @@ class Firmware
 
     virtual QTime getMaxTimerStart() = 0;
 
-    virtual int isAvailable(PulsesProtocol proto, int port=0) = 0;
+    virtual bool isAvailable(PulsesProtocol proto, int port=0) = 0;
 
     const int getFlashSize();
 

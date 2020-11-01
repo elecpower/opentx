@@ -41,6 +41,11 @@ extern "C" {
   #endif
 #endif
 
+#if !defined(CLI) || defined(AUX2_SERIAL)
+#define LUA_FIFO_SIZE 256
+extern Fifo<uint8_t, LUA_FIFO_SIZE> * luaRxFifo;
+#endif
+
 extern lua_State * lsScripts;
 extern lua_State * lsWidgets;
 extern bool luaLcdAllowed;
@@ -155,11 +160,9 @@ extern uint16_t maxLuaInterval;
 extern uint16_t maxLuaDuration;
 extern uint8_t instructionsPercent;
 
-#if defined(PCBXLITE)
-  #define IS_MASKABLE(key) ((key) != KEY_EXIT && (key) != KEY_ENTER)
-#elif defined(PCBTARANIS)
+#if defined(KEYS_GPIO_REG_PAGE)
   #define IS_MASKABLE(key) ((key) != KEY_EXIT && (key) != KEY_ENTER && ((luaState & INTERPRETER_RUNNING_STANDALONE_SCRIPT) || (key) != KEY_PAGE))
-#elif defined(PCBHORUS)
+#else
   #define IS_MASKABLE(key) ((key) != KEY_EXIT && (key) != KEY_ENTER)
 #endif
 struct LuaField {
@@ -172,6 +175,15 @@ void luaRegisterLibraries(lua_State * L);
 void registerBitmapClass(lua_State * L);
 void luaSetInstructionsLimit(lua_State* L, int count);
 int luaLoadScriptFileToState(lua_State * L, const char * filename, const char * mode);
+
+#if LCD_W > 350
+  #define RADIO_TOOL_NAME_MAXLEN  40
+#else
+  #define RADIO_TOOL_NAME_MAXLEN  16
+#endif
+
+bool readToolName(char * toolName, const char * filename);
+bool isRadioScriptTool(const char * filename);
 
 struct LuaMemTracer {
   const char * script;

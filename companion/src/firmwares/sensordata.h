@@ -23,7 +23,10 @@
 
 #include <QtCore>
 
-#define CPN_MAX_SENSORS       32
+constexpr int CPN_MAX_SENSORS = 60;
+constexpr int SENSOR_LABEL_LEN = 4;
+
+class ModelData;
 
 class SensorData {
   Q_DECLARE_TR_FUNCTIONS(SensorData)
@@ -72,10 +75,13 @@ class SensorData {
       UNIT_METERS_PER_SECOND,
       UNIT_FEET_PER_SECOND,
       UNIT_KMH,
+      UNIT_SPEED = UNIT_KMH,
       UNIT_MPH,
       UNIT_METERS,
+      UNIT_DIST = UNIT_METERS,
       UNIT_FEET,
       UNIT_CELSIUS,
+      UNIT_TEMPERATURE = UNIT_CELSIUS,
       UNIT_FAHRENHEIT,
       UNIT_PERCENT,
       UNIT_MAH,
@@ -88,18 +94,31 @@ class SensorData {
       UNIT_RADIANS,
       UNIT_MILLILITERS,
       UNIT_FLOZ,
+      UNIT_MILLILITERS_PER_MINUTE,
+      UNIT_HERZ,
+      UNIT_MS,
+      UNIT_US,
+      UNIT_MAX = UNIT_US,
+      UNIT_SPARE4,
+      UNIT_SPARE5,
+      UNIT_SPARE6,
+      UNIT_SPARE7,
+      UNIT_SPARE8,
+      UNIT_SPARE9,
+      UNIT_SPARE10,
       UNIT_HOURS,
       UNIT_MINUTES,
       UNIT_SECONDS,
       // FrSky format used for these fields, could be another format in the future
-        UNIT_FIRST_VIRTUAL,
+      UNIT_FIRST_VIRTUAL,
       UNIT_CELLS = UNIT_FIRST_VIRTUAL,
       UNIT_DATETIME,
       UNIT_GPS,
+      UNIT_BITFIELD,
+      UNIT_TEXT,
+      // Internal units (not stored in sensor unit)
       UNIT_GPS_LONGITUDE,
       UNIT_GPS_LATITUDE,
-      UNIT_GPS_LONGITUDE_EW,
-      UNIT_GPS_LATITUDE_NS,
       UNIT_DATETIME_YEAR,
       UNIT_DATETIME_DAY_MONTH,
       UNIT_DATETIME_HOUR_MIN,
@@ -111,9 +130,11 @@ class SensorData {
     unsigned int id;
     unsigned int subid;
     unsigned int instance;
+    unsigned int rxIdx;
+    unsigned int moduleIdx;
     unsigned int persistentValue;
     unsigned int formula;
-    char label[4+1];
+    char label[SENSOR_LABEL_LEN + 1];
     unsigned int unit;
     unsigned int prec;
     bool autoOffset;
@@ -144,7 +165,9 @@ class SensorData {
     void updateUnit();
     QString unitString() const;
     QString nameToString(int index) const;
+    QString getOrigin(const ModelData* model) const;
     void clear() { memset(this, 0, sizeof(SensorData)); }
+    bool isEmpty() const;
 };
 
 #endif // SENSORDATA_H

@@ -25,19 +25,19 @@ extern uint8_t g_moduleIdx;
 enum PowerMeterFields {
   POWER_METER_FREQ_RANGE,
   POWER_METER_ATTENUATOR,
+  POWER_METER_MAX,
   POWER_METER_POWER,
   POWER_METER_PEAK,
-  POWER_METER_WARNING,
   POWER_METER_FIELDS_MAX
 };
 
 
 void menuRadioPowerMeter(event_t event)
 {
-  SUBMENU("POWER METER", POWER_METER_FIELDS_MAX-1, {0, 0, READONLY_ROW, READONLY_ROW, READONLY_ROW});
+  SUBMENU(STR_MENU_POWER_METER, POWER_METER_FIELDS_MAX-1, {0, 0, READONLY_ROW, READONLY_ROW, READONLY_ROW});
 
   if (TELEMETRY_STREAMING()) {
-    lcdDrawCenteredText(LCD_H/2, "Turn off receiver");
+    lcdDrawCenteredText(LCD_H/2, STR_TURN_OFF_RECEIVER);
     if (event == EVT_KEY_FIRST(KEY_EXIT)) {
       killEvents(event);
       popMenu();
@@ -46,33 +46,34 @@ void menuRadioPowerMeter(event_t event)
   }
 
   if (menuEvent) {
-    lcdDrawCenteredText(LCD_H/2, "Stopping...");
+    lcdDrawCenteredText(LCD_H/2, STR_STOPPING);
     lcdRefresh();
-    pausePulses();
-    moduleSettings[g_moduleIdx].mode = MODULE_MODE_NORMAL;
-    /* wait 500ms off */
-    watchdogSuspend(500);
-    RTOS_WAIT_MS(500);
-    resumePulses();
-    /* wait 500ms to resume normal operation before leaving */
-    watchdogSuspend(500);
-    RTOS_WAIT_MS(500);
+    moduleState[g_moduleIdx].readModuleInformation(&reusableBuffer.moduleSetup.pxx2.moduleInformation, PXX2_HW_INFO_TX_ID, PXX2_HW_INFO_TX_ID);
+    /* wait 1s to resume normal operation before leaving */
+    watchdogSuspend(500 /*5s*/);
+    RTOS_WAIT_MS(1000);
     return;
   }
 
-  if (moduleSettings[g_moduleIdx].mode != MODULE_MODE_POWER_METER) {
+  if (moduleState[g_moduleIdx].mode != MODULE_MODE_POWER_METER) {
     memclear(&reusableBuffer.powerMeter, sizeof(reusableBuffer.powerMeter));
     reusableBuffer.powerMeter.freq = 2400000000;
-    moduleSettings[g_moduleIdx].mode = MODULE_MODE_POWER_METER;
+    reusableBuffer.powerMeter.attn = 4;
+    reusableBuffer.powerMeter.dirty = true;
+    moduleState[g_moduleIdx].mode = MODULE_MODE_POWER_METER;
   }
+
+  // The warning
+  if (reusableBuffer.powerMeter.attn != 0)
+    lcdDrawCenteredText(FH+2, STR_POWERMETER_ATTN_NEEDED, BOLD);
 
   for (uint8_t i=0; i<POWER_METER_FIELDS_MAX; i++) {
     LcdFlags attr = (menuVerticalPosition == i ? (s_editMode > 0 ? INVERS | BLINK : INVERS) : 0);
-    coord_t y = MENU_HEADER_HEIGHT + FH + i * FH;
+    coord_t y = MENU_HEADER_HEIGHT + 12 + i * FH;
 
     switch (i) {
       case POWER_METER_FREQ_RANGE:
-        lcdDrawText(0, y, "Freq.");
+        lcdDrawText(0, y, STR_POWERMETER_FREQ);
         lcdDrawNumber(8 * FW, y, reusableBuffer.powerMeter.freq / 1000000, LEFT | attr);
         lcdDrawText(lcdNextPos, y, " MHz band");
         if (attr) {
@@ -80,12 +81,13 @@ void menuRadioPowerMeter(event_t event)
           if (checkIncDec_Ret) {
             reusableBuffer.powerMeter.power = 0;
             reusableBuffer.powerMeter.peak = 0;
+            reusableBuffer.powerMeter.dirty = true;
           }
         }
         break;
 
       case POWER_METER_ATTENUATOR:
-        lcdDrawText(0, y, "Attn");
+        lcdDrawText(0, y, STR_POWERMETER_ATTN);
         lcdDrawNumber(8 * FW, y, -10 * reusableBuffer.powerMeter.attn, LEFT | attr);
         lcdDrawText(lcdNextPos, y, " dB");
         if (attr) {
@@ -93,8 +95,18 @@ void menuRadioPowerMeter(event_t event)
         }
         break;
 
+      case POWER_METER_MAX:
+        lcdDrawText(0, y, STR_MAX);
+        lcdDrawNumber(8 * FW, y, -10 + 10 * reusableBuffer.powerMeter.attn);
+        lcdDrawText(lcdLastRightPos, y, "dBm/ ");
+        drawPower(lcdLastRightPos, y, -10 + 10 * reusableBuffer.powerMeter.attn, 0);
+        if (attr) {
+          reusableBuffer.powerMeter.attn = checkIncDec(event, reusableBuffer.powerMeter.attn, 0, 5, 0);
+        }
+        break;
+
       case POWER_METER_POWER:
-        lcdDrawText(0, y, "Power");
+        lcdDrawText(0, y, STR_POWERMETER_POWER);
         if (reusableBuffer.powerMeter.power) {
           lcdDrawNumber(8 * FW, y, reusableBuffer.powerMeter.power + reusableBuffer.powerMeter.attn * 1000, LEFT | PREC2);
           lcdDrawText(lcdNextPos, y, "dBm");
@@ -102,17 +114,11 @@ void menuRadioPowerMeter(event_t event)
         break;
 
       case POWER_METER_PEAK:
-        lcdDrawText(0, y, "Peak");
+        lcdDrawText(0, y, STR_POWERMETER_PEAK);
         if (reusableBuffer.powerMeter.peak) {
           lcdDrawNumber(8 * FW, y, reusableBuffer.powerMeter.peak + reusableBuffer.powerMeter.attn * 1000, LEFT | PREC2);
           lcdDrawText(lcdNextPos, y, "dBm");
         }
-        break;
-
-      case POWER_METER_WARNING:
-        lcdDrawText(0, y, "WARNING : Max ");
-        lcdDrawNumber(lcdNextPos, y, -10 + 10 * reusableBuffer.powerMeter.attn, LEFT | BOLD);
-        lcdDrawText(lcdNextPos+3, y, "dBm", BOLD);
         break;
     }
   }

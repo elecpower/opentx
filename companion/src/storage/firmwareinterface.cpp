@@ -37,7 +37,6 @@
 FirmwareInterface::FirmwareInterface(const QString & filename):
   flash(FSIZE_MAX, 0),
   flashSize(0),
-  versionId(0),
   eepromVersion(0),
   eepromVariant(0),
   splashOffset(0),
@@ -67,7 +66,7 @@ FirmwareInterface::FirmwareInterface(const QString & filename):
       // old version format
       int index = version.lastIndexOf('-');
       flavour = version.mid(0, index);
-      version = version.mid(index+1);
+      version = version.mid(index + 1);
     }
     date = seekLabel(DATE_MARK);
     time = seekLabel(TIME_MARK);

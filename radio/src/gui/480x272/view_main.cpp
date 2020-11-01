@@ -22,7 +22,7 @@
 
 #define TRIM_LH_X                      10
 #define TRIM_LV_X                      24
-#define TRIM_RV_X                      (LCD_W-35)
+#define TRIM_RV_X                      (LCD_W-36)
 #define TRIM_RH_X                      (LCD_W-175)
 #define TRIM_V_Y                       55
 #define TRIM_H_Y                       (LCD_H-37)
@@ -36,7 +36,10 @@ void drawMainPots()
 {
   // The 3 pots
   drawHorizontalSlider(TRIM_LH_X, POTS_LINE_Y, 160, calibratedAnalogs[CALIBRATED_POT1], -RESX, RESX, 40, OPTION_SLIDER_TICKS | OPTION_SLIDER_BIG_TICKS | OPTION_SLIDER_SQUARE_BUTTON);
-  drawHorizontalSlider(LCD_W/2-20, POTS_LINE_Y, XPOTS_MULTIPOS_COUNT*5, 1 + (potsPos[1] & 0x0f), 1, XPOTS_MULTIPOS_COUNT + 1, XPOTS_MULTIPOS_COUNT, OPTION_SLIDER_TICKS | OPTION_SLIDER_BIG_TICKS | OPTION_SLIDER_NUMBER_BUTTON);
+  if (IS_POT_MULTIPOS(POT2))
+    drawHorizontalSlider(LCD_W/2-20, POTS_LINE_Y, XPOTS_MULTIPOS_COUNT*5, 1 + (potsPos[1] & 0x0f), 1, XPOTS_MULTIPOS_COUNT + 1, XPOTS_MULTIPOS_COUNT, OPTION_SLIDER_TICKS | OPTION_SLIDER_BIG_TICKS | OPTION_SLIDER_NUMBER_BUTTON);
+  else
+    drawHorizontalSlider(LCD_W/2-40, POTS_LINE_Y, 80, calibratedAnalogs[CALIBRATED_POT2], -RESX, RESX, 40, OPTION_SLIDER_TICKS | OPTION_SLIDER_BIG_TICKS | OPTION_SLIDER_SQUARE_BUTTON);
   drawHorizontalSlider(TRIM_RH_X, POTS_LINE_Y, 160, calibratedAnalogs[CALIBRATED_POT3], -RESX, RESX, 40, OPTION_SLIDER_TICKS | OPTION_SLIDER_BIG_TICKS | OPTION_SLIDER_SQUARE_BUTTON);
 
   // The 2 rear sliders
@@ -44,10 +47,10 @@ void drawMainPots()
   drawVerticalSlider(LCD_W-18, TRIM_V_Y, 160, calibratedAnalogs[CALIBRATED_SLIDER_REAR_RIGHT], -RESX, RESX, 40, OPTION_SLIDER_TICKS | OPTION_SLIDER_BIG_TICKS | OPTION_SLIDER_SQUARE_BUTTON);
 }
 
-void drawTrims(uint8_t flightMode)
+void drawTrims(uint8_t flightMode, bool sliderdisplayed)
 {
   for (uint8_t i=0; i<4; i++) {
-    static const coord_t x[4] = { TRIM_LH_X, TRIM_LV_X, TRIM_RV_X, TRIM_RH_X };
+    coord_t x[4] = { TRIM_LH_X, sliderdisplayed ? TRIM_LV_X : 4, sliderdisplayed ? TRIM_RV_X : TRIM_RV_X + 18, TRIM_RH_X };
     static uint8_t vert[4] = {0, 1, 1, 0};
     unsigned int stickIndex = CONVERT_MODE(i);
     coord_t xm = x[stickIndex];
@@ -73,15 +76,15 @@ void drawTrims(uint8_t flightMode)
     }
     else {
       if (g_model.extendedTrims == 1) {
-        drawHorizontalSlider(xm, TRIM_H_Y, 160, trim, TRIM_EXTENDED_MIN, TRIM_EXTENDED_MAX, 0, OPTION_SLIDER_EMPTY_BAR|OPTION_SLIDER_TRIM_BUTTON);
+        drawHorizontalSlider(xm, sliderdisplayed ? TRIM_H_Y : TRIM_H_Y + 22, 160, trim, TRIM_EXTENDED_MIN, TRIM_EXTENDED_MAX, 0, OPTION_SLIDER_EMPTY_BAR|OPTION_SLIDER_TRIM_BUTTON);
       }
       else {
-        drawHorizontalSlider(xm, TRIM_H_Y, 160, trim, TRIM_MIN, TRIM_MAX, 0, OPTION_SLIDER_EMPTY_BAR|OPTION_SLIDER_TRIM_BUTTON);
+        drawHorizontalSlider(xm, sliderdisplayed ? TRIM_H_Y : TRIM_H_Y + 20, 160, trim, TRIM_MIN, TRIM_MAX, 0, OPTION_SLIDER_EMPTY_BAR|OPTION_SLIDER_TRIM_BUTTON);
       }
       if (g_model.displayTrims != DISPLAY_TRIMS_NEVER && trim != 0) {
         if (g_model.displayTrims == DISPLAY_TRIMS_ALWAYS || (trimsDisplayTimer > 0 && (trimsDisplayMask & (1<<i)))) {
           uint16_t x = xm + TRIM_LEN + (trim>0 ? -TRIM_LEN/2 : TRIM_LEN/2);
-          lcdDrawNumber(x, TRIM_H_Y+2, trim, TINSIZE | CENTERED);
+          lcdDrawNumber(x, sliderdisplayed ? TRIM_H_Y + 2 : TRIM_H_Y + 22, trim, TINSIZE | CENTERED);
         }
       }
     }
@@ -111,6 +114,7 @@ void onMainViewMenu(const char *result)
     POPUP_MENU_ADD_ITEM(STR_RESET_TIMER2);
     POPUP_MENU_ADD_ITEM(STR_RESET_TIMER3);
     POPUP_MENU_ADD_ITEM(STR_RESET_TELEMETRY);
+    POPUP_MENU_START(onMainViewMenu);
   }
   else if (result == STR_RESET_TELEMETRY) {
     telemetryReset();
@@ -218,6 +222,14 @@ bool menuMainView(event_t event)
         customScreens[i]->background();
     }
   }
+
+#if defined(HARDWARE_INTERNAL_MODULE) && defined(INTERNAL_MODULE_PXX2) && defined(ACCESS_LIB)
+  if (globalData.authenticationCount > 0 && !globalData.upgradeModulePopup && !globalData.internalModuleVersionChecked) {
+    globalData.internalModuleVersionChecked = 1;
+    memclear(&reusableBuffer.viewMain.internalModule, sizeof(reusableBuffer.viewMain.internalModule));
+    moduleState[INTERNAL_MODULE].readModuleInformation(&reusableBuffer.viewMain.internalModule, PXX2_HW_INFO_TX_ID, PXX2_HW_INFO_TX_ID);
+  }
+#endif
 
   return true;
 }

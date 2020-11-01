@@ -21,6 +21,7 @@
 #include "sensordata.h"
 
 #include "radiodata.h"
+#include "modeldata.h"
 
 void SensorData::updateUnit()
 {
@@ -52,9 +53,9 @@ QString SensorData::unitString() const
     case UNIT_FEET:
       return tr("f");
     case UNIT_CELSIUS:
-      return trUtf8("°C");
+      return tr("°C");
     case UNIT_FAHRENHEIT:
-      return trUtf8("°F");
+      return tr("°F");
     case UNIT_PERCENT:
       return tr("%");
     case UNIT_MAH:
@@ -70,9 +71,9 @@ QString SensorData::unitString() const
     case UNIT_G:
       return tr("g");
     case UNIT_DEGREE:
-      return trUtf8("°");
+      return tr("°");
     case UNIT_RADIANS:
-      return trUtf8("Rad");
+      return tr("Rad");
     case UNIT_HOURS:
       return tr("hours");
     case UNIT_MINUTES:
@@ -81,6 +82,14 @@ QString SensorData::unitString() const
       return tr("seconds");
     case UNIT_CELLS:
       return tr("V");
+    case UNIT_MILLILITERS_PER_MINUTE:
+      return tr("ml/minute");
+    case UNIT_HERZ:
+      return tr("Hertz");
+    case UNIT_MS:
+      return tr("mS");
+    case UNIT_US:
+      return tr("uS");
     default:
       return "";
   }
@@ -89,4 +98,23 @@ QString SensorData::unitString() const
 QString SensorData::nameToString(int index) const
 {
   return RadioData::getElementName(tr("TELE"), index + 1, label);
+}
+
+QString SensorData::getOrigin(const ModelData * model) const
+{
+  if (type != TELEM_TYPE_CUSTOM || !id)
+    return QString();
+
+  const ModuleData & module = model->moduleData[moduleIdx];
+  if (module.isPxx2Module() && rxIdx <= 2 && module.access.receivers & (1 << rxIdx)) {
+    return QString(module.access.receiverName[rxIdx]);
+  }
+  else {
+    return QString();
+  }
+}
+
+bool SensorData::isEmpty() const
+{
+  return (!isAvailable() && type == 0 && id == 0 && subid == 0 && instance == 0 && rxIdx == 0 && moduleIdx == 0 && unit == 0 && ratio == 0 && prec == 0 && offset == 0 && autoOffset == 0 && filter == 0 && onlyPositive == 0 && logs == 0);
 }

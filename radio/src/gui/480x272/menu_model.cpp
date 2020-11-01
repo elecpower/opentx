@@ -36,14 +36,14 @@ const MenuHandlerFunc menuTabModel[] = {
 #if defined(LUA_MODEL_SCRIPTS)
   menuModelCustomScripts,
 #endif
-  CASE_FRSKY(menuModelTelemetryFrsky)
+  menuModelTelemetry
 };
 
 void editCurveRef(coord_t x, coord_t y, CurveRef & curve, event_t event, LcdFlags attr);
 
 uint8_t editDelay(coord_t x, coord_t y, event_t event, uint8_t attr, uint8_t delay)
 {
-  lcdDrawNumber(x+MIXES_2ND_COLUMN, y, (10/DELAY_STEP)*delay, attr|PREC1|LEFT);
+  lcdDrawNumber(x+MIXES_2ND_COLUMN, y, delay, attr|PREC1|LEFT);
   if (attr) CHECK_INCDEC_MODELVAR_ZERO(event, delay, DELAY_MAX);
   return delay;
 }
@@ -151,6 +151,9 @@ void editName(coord_t x, coord_t y, char * name, uint8_t size, event_t event, ui
 }
 
 uint8_t s_currIdx;
+uint8_t s_currIdxSubMenu;
+uint16_t s_currSrcRaw;
+uint16_t s_currScale;
 
 void copySelection(char * dst, const char * src, uint8_t size)
 {

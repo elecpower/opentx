@@ -22,11 +22,24 @@
 
 #define MODELSEL_W                     LCD_W
 
+void onDeleteModelConfirm(const char * result)
+{
+  if (result == STR_OK) {
+    storageCheck(true);
+    eeDeleteModel(menuVerticalPosition); // delete file
+    s_copyMode = 0;
+  }
+}
+
 void onModelSelectMenu(const char * result)
 {
   int8_t sub = menuVerticalPosition;
 
   if (result == STR_SELECT_MODEL || result == STR_CREATE_MODEL) {
+    if (!g_eeGeneral.disableRssiPoweroffAlarm) {
+      if (!confirmModelChange())
+        return;
+    }
     selectModel(sub);
   }
   else if (result == STR_COPY_MODEL) {
@@ -45,14 +58,14 @@ void onModelSelectMenu(const char * result)
     POPUP_WARNING(eeBackupModel(sub));
   }
   else if (result == STR_RESTORE_MODEL || result == STR_UPDATE_LIST) {
-    if (!sdListFiles(MODELS_PATH, MODELS_EXT, MENU_LINE_LENGTH-1, NULL)) {
+    if (sdListFiles(MODELS_PATH, MODELS_EXT, MENU_LINE_LENGTH-1, nullptr))
+      POPUP_MENU_START(onModelSelectMenu);
+    else
       POPUP_WARNING(STR_NO_MODELS_ON_SD);
-      POPUP_MENU_UNSET_BSS_FLAG();
-    }
   }
 #endif
   else if (result == STR_DELETE_MODEL) {
-    POPUP_CONFIRMATION(STR_DELETEMODEL, nullptr);
+    POPUP_CONFIRMATION(STR_DELETEMODEL, onDeleteModelConfirm);
     SET_WARNING_INFO(modelHeaders[sub].name, sizeof(g_model.header.name), ZCHAR);
   }
 #if defined(SDCARD)
@@ -69,18 +82,9 @@ void onModelSelectMenu(const char * result)
 
 void menuModelSelect(event_t event)
 {
-  if (warningResult) {
-    warningResult = 0;
-    storageCheck(true);
-    eeDeleteModel(menuVerticalPosition); // delete file
-    s_copyMode = 0;
-    event = EVT_ENTRY_UP;
-  }
-
-  event_t _event_ = (IS_ROTARY_BREAK(event) || IS_ROTARY_LONG(event) ? 0 : event);
-
-  if ((s_copyMode && EVT_KEY_MASK(event) == KEY_EXIT) || event == EVT_KEY_BREAK(KEY_EXIT)) {
-    _event_ -= KEY_EXIT;
+  event_t _event_ = event;
+  if ((s_copyMode && EVT_KEY_MASK(event) == KEY_EXIT) || event == EVT_KEY_BREAK(KEY_EXIT) || IS_ROTARY_BREAK(event) || IS_ROTARY_LONG(event)) {
+    _event_ = 0;
   }
 
   int8_t oldSub = menuVerticalPosition;
@@ -113,21 +117,6 @@ void menuModelSelect(event_t event)
       }
       break;
 
-#if defined(ROTARY_ENCODERS)
-    case EVT_ROTARY_LONG:
-      killEvents(event);
-      if (s_editMode < 0) {
-        popMenu();
-        break;
-      }
-      else if (!s_copyMode) {
-        menuVerticalPosition = sub = g_eeGeneral.currModel;
-        s_copyMode = 0;
-        s_editMode = EDIT_MODE_INIT;
-      }
-      // no break
-#endif
-
     case EVT_KEY_BREAK(KEY_EXIT):
       if (s_copyMode) {
         sub = menuVerticalPosition = (s_copyMode == MOVE_MODE || s_copySrcRow<0) ? (MAX_MODELS+sub+s_copyTgtOfs) % MAX_MODELS : s_copySrcRow;
@@ -140,15 +129,6 @@ void menuModelSelect(event_t event)
         popMenu();
       }
       break;
-
-#if defined(ROTARY_ENCODERS)
-    case EVT_ROTARY_BREAK:
-      if (s_editMode == -1) {
-        s_editMode = 0;
-        break;
-      }
-      // no break;
-#endif
 
     case EVT_KEY_LONG(KEY_ENTER):
     case EVT_KEY_BREAK(KEY_ENTER):
@@ -223,7 +203,7 @@ void menuModelSelect(event_t event)
       }
       break;
 
-#if defined(PCBX7) || defined(PCBX3)
+#if defined(NAVIGATION_X7)
     case EVT_KEY_LONG(KEY_PAGE):
       chainMenu(menuTabModel[DIM(menuTabModel)-1]);
       killEvents(event);
@@ -255,7 +235,7 @@ void menuModelSelect(event_t event)
 #endif
 #endif
 
-#if defined(PCBX7) || defined(PCBX3)
+#if defined(NAVIGATION_X7)
     case EVT_ROTARY_LEFT:
     case EVT_ROTARY_RIGHT:
 #endif
@@ -296,7 +276,7 @@ void menuModelSelect(event_t event)
   lcdDrawNumber(17*FW, 0, reusableBuffer.modelsel.eepromfree, RIGHT);
 #endif
 
-#if defined(PCBX7) || defined(PCBX3)
+#if defined(NAVIGATION_X7)
   drawScreenIndex(MENU_MODEL_SELECT, DIM(menuTabModel), 0);
 #elif defined(ROTARY_ENCODER_NAVIGATION)
   drawScreenIndex(MENU_MODEL_SELECT, DIM(menuTabModel), (sub == g_eeGeneral.currModel) ? ((IS_ROTARY_ENCODER_NAVIGATION_ENABLE() && s_editMode < 0) ? INVERS|BLINK : INVERS) : 0);
@@ -304,7 +284,7 @@ void menuModelSelect(event_t event)
   drawScreenIndex(MENU_MODEL_SELECT, DIM(menuTabModel), (sub == g_eeGeneral.currModel) ? INVERS : 0);
 #endif
 
-  TITLE(STR_MENUMODELSEL);
+  title(STR_MENUMODELSEL);
 
   for (uint8_t i=0; i<NUM_BODY_LINES; i++) {
     coord_t y = MENU_HEADER_HEIGHT + 1 + i*FH;

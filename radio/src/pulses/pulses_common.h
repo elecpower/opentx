@@ -23,13 +23,34 @@
 
 #include <inttypes.h>
 
-#if defined(PCBX12S) && PCBREV < 13
-  #define pulse_duration_t             uint32_t
-  #define trainer_pulse_duration_t     uint16_t
+#if defined(EXTMODULE_TIMER_32BITS)
+  typedef uint32_t pulse_duration_t;
 #else
-  #define pulse_duration_t             uint16_t
-  #define trainer_pulse_duration_t     uint16_t
+  typedef uint16_t pulse_duration_t;
 #endif
+
+typedef uint16_t trainer_pulse_duration_t;
+
+enum ModuleSettingsMode
+{
+  MODULE_MODE_NORMAL,
+  MODULE_MODE_SPECTRUM_ANALYSER,
+  MODULE_MODE_POWER_METER,
+  MODULE_MODE_GET_HARDWARE_INFO,
+  MODULE_MODE_MODULE_SETTINGS,
+  MODULE_MODE_RECEIVER_SETTINGS,
+  MODULE_MODE_BEEP_FIRST,
+  MODULE_MODE_REGISTER = MODULE_MODE_BEEP_FIRST,
+  MODULE_MODE_BIND,
+  MODULE_MODE_SHARE,
+  MODULE_MODE_RANGECHECK,
+  MODULE_MODE_RESET,
+  MODULE_MODE_AUTHENTICATION,
+  MODULE_MODE_OTA_UPDATE,
+};
+
+ModuleSettingsMode getModuleMode(int moduleIndex);
+void setModuleMode(int moduleIndex, ModuleSettingsMode mode);
 
 template <class T, int SIZE>
 class DataBuffer {
@@ -58,8 +79,12 @@ template <class T, int SIZE>
 class PulsesBuffer: public DataBuffer<T, SIZE> {
   public:
     T getLast() {
-        return *(DataBuffer<T, SIZE>::ptr - 1);
+      return *(DataBuffer<T, SIZE>::ptr - 1);
     };
+
+    void setLast(T value) {
+      *(DataBuffer<T, SIZE>::ptr - 1) = value;
+    }
 };
 
 #endif

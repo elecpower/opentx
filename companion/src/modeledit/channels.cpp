@@ -45,7 +45,7 @@ LimitsGroup::LimitsGroup(Firmware * firmware, TableLayout * tableLayout, int row
     spinbox->setSuffix("%");
   }
 
-  if (IS_ARM(board) || deflt == 0 /*it's the offset*/) {
+  if (deflt == 0 /*it's the offset*/) {
     spinbox->setDecimals(1);
   }
   else {
@@ -82,12 +82,14 @@ void LimitsGroup::updateMinMax(int max)
 {
   if (spinbox->maximum() == 0) {
     spinbox->setMinimum(-max * displayStep);
+    gvarGroup->setMinimum(-max);
     if (value < -max) {
       value = -max;
     }
   }
   if (spinbox->minimum() == 0) {
     spinbox->setMaximum(max * displayStep);
+    gvarGroup->setMaximum(max);
     if (value > max) {
       value = max;
     }
@@ -99,6 +101,7 @@ Channels::Channels(QWidget * parent, ModelData & model, GeneralSettings & genera
 {
   Stopwatch s1("Channels");
 
+  chnCapability = firmware->getCapability(Outputs);
   int channelNameMaxLen = firmware->getCapability(ChannelsName);
 
   QStringList headerLabels;
@@ -113,11 +116,11 @@ Channels::Channels(QWidget * parent, ModelData & model, GeneralSettings & genera
     headerLabels << tr("PPM Center");
   if (firmware->getCapability(SYMLimits))
     headerLabels << tr("Linear Subtrim");
-  TableLayout *tableLayout = new TableLayout(this, firmware->getCapability(LogicalSwitches), headerLabels);
+  TableLayout *tableLayout = new TableLayout(this, chnCapability, headerLabels);
 
   s1.report("header");
 
-  for (int i=0; i<firmware->getCapability(Outputs); i++) {
+  for (int i = 0; i < chnCapability; i++) {
     int col = 0;
 
     // Channel label
@@ -128,7 +131,7 @@ Channels::Channels(QWidget * parent, ModelData & model, GeneralSettings & genera
     label->setContextMenuPolicy(Qt::CustomContextMenu);
     label->setToolTip(tr("Popup menu available"));
     label->setMouseTracking(true);
-    connect(label, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(chn_customContextMenuRequested(QPoint)));
+    connect(label, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(onCustomContextMenuRequested(QPoint)));
     tableLayout->addWidget(i, col++, label);
 
     // Channel name
@@ -162,11 +165,6 @@ Channels::Channels(QWidget * parent, ModelData & model, GeneralSettings & genera
     if (IS_HORUS_OR_TARANIS(firmware->getBoard())) {
       curveCB[i] = new QComboBox(this);
       curveCB[i]->setProperty("index", i);
-      int numcurves = firmware->getCapability(NumCurves);
-      for (int j=-numcurves; j<=numcurves; j++) {
-        curveCB[i]->addItem(CurveReference(CurveReference::CURVE_REF_CUSTOM, j).toString(&model, false), j);
-      }
-      curveCB[i]->setCurrentIndex(model.limitData[i].curve.value+numcurves);
       connect(curveCB[i], SIGNAL(currentIndexChanged(int)), this, SLOT(curveEdited()));
       tableLayout->addWidget(i, col++, curveCB[i]);
     }
@@ -199,14 +197,14 @@ Channels::Channels(QWidget * parent, ModelData & model, GeneralSettings & genera
 
   disableMouseScrolling();
   tableLayout->resizeColumnsToContents();
-  tableLayout->pushRowsUp(firmware->getCapability(Outputs)+1);
+  tableLayout->pushRowsUp(chnCapability+1);
   s1.report("end");
 }
 
 Channels::~Channels()
 {
   // compiler warning if delete[]
-  for (int i=0; i<CPN_MAX_CHNOUT;i++) {
+  for (int i = 0; i < CPN_MAX_CHNOUT; i++) {
     delete name[i];
     delete chnOffset[i];
     delete chnMin[i];
@@ -242,7 +240,7 @@ void Channels::refreshExtendedLimits()
 {
   int channelMax = model->getChannelsMax();
 
-  for (int i=0 ; i<CPN_MAX_CHNOUT; i++) {
+  for (int i = 0 ; i < CPN_MAX_CHNOUT; i++) {
     chnOffset[i]->updateMinMax(10 * channelMax);
     chnMin[i]->updateMinMax(10 * channelMax);
     chnMax[i]->updateMinMax(10 * channelMax);
@@ -282,7 +280,7 @@ void Channels::ppmcenterEdited()
 
 void Channels::update()
 {
-  for (int i=0; i<firmware->getCapability(Outputs); i++) {
+  for (int i = 0; i < chnCapability; i++) {
     updateLine(i);
   }
 }
@@ -298,7 +296,12 @@ void Channels::updateLine(int i)
   chnMax[i]->setValue(model->limitData[i].max);
   invCB[i]->setCurrentIndex((model->limitData[i].revert) ? 1 : 0);
   if (IS_HORUS_OR_TARANIS(firmware->getBoard())) {
-    curveCB[i]->setCurrentIndex(model->limitData[i].curve.value + firmware->getCapability(NumCurves));
+    int numcurves = firmware->getCapability(NumCurves);
+    curveCB[i]->clear();
+    for (int j = -numcurves; j <= numcurves; j++) {
+      curveCB[i]->addItem(CurveReference(CurveReference::CURVE_REF_CUSTOM, j).toString(model, false), j);
+    }
+    curveCB[i]->setCurrentIndex(model->limitData[i].curve.value + numcurves);
   }
   if (firmware->getCapability(PPMCenter)) {
     centerSB[i]->setValue(model->limitData[i].ppmCenter + 1500);
@@ -309,57 +312,155 @@ void Channels::updateLine(int i)
   lock = false;
 }
 
-void Channels::chnPaste()
+void Channels::cmPaste()
 {
-  const QClipboard *clipboard = QApplication::clipboard();
-  const QMimeData *mimeData = clipboard->mimeData();
-  if (mimeData->hasFormat("application/x-companion-chn")) {
-    QByteArray chnData = mimeData->data("application/x-companion-chn");
-    LimitData *chn = &model->limitData[selectedChannel];
-    memcpy(chn, chnData.constData(), sizeof(LimitData));
-    updateLine(selectedChannel);
+  QByteArray data;
+  if (hasClipboardData(&data)) {
+    memcpy(&model->limitData[selectedIndex], data.constData(), sizeof(LimitData));
+    updateLine(selectedIndex);
     emit modified();
   }
 }
 
-void Channels::chnDelete()
+void Channels::cmDelete()
 {
-  model->limitData[selectedChannel].clear();
-  updateLine(selectedChannel);
+  if (QMessageBox::question(this, CPN_STR_APP_NAME, tr("Delete Channel. Are you sure?"), QMessageBox::Yes | QMessageBox::No) == QMessageBox::No)
+    return;
+
+  memmove(&model->limitData[selectedIndex], &model->limitData[selectedIndex + 1], (CPN_MAX_CHNOUT - (selectedIndex + 1)) * sizeof(LimitData));
+  model->limitData[chnCapability - 1].clear();
+  model->updateAllReferences(ModelData::REF_UPD_TYPE_CHANNEL, ModelData::REF_UPD_ACT_SHIFT, selectedIndex, 0, -1);
+
+  for (int i = selectedIndex; i < chnCapability; i++) {
+    updateLine(i);
+  }
+
   emit modified();
 }
 
-void Channels::chnCopy()
+void Channels::cmCopy()
 {
-  QByteArray chnData;
-  chnData.append((char*)&model->limitData[selectedChannel],sizeof(LimitData));
+  QByteArray data;
+  data.append((char*)&model->limitData[selectedIndex], sizeof(LimitData));
   QMimeData *mimeData = new QMimeData;
-  mimeData->setData("application/x-companion-chn", chnData);
+  mimeData->setData(MIMETYPE_CHANNEL, data);
   QApplication::clipboard()->setMimeData(mimeData,QClipboard::Clipboard);
 }
 
-void Channels::chnCut()
+void Channels::cmCut()
 {
-  chnCopy();
-  chnDelete();
+  if (QMessageBox::question(this, CPN_STR_APP_NAME, tr("Cut Channel. Are you sure?"), QMessageBox::Yes | QMessageBox::No) == QMessageBox::No)
+    return;
+
+  cmCopy();
+  cmClear(false);
 }
 
-void Channels::chn_customContextMenuRequested(QPoint pos)
+void Channels::onCustomContextMenuRequested(QPoint pos)
 {
-    QLabel *label = (QLabel *)sender();
-    selectedChannel = label->property("index").toInt();
+  QLabel *label = (QLabel *)sender();
+  selectedIndex = label->property("index").toInt();
+  QPoint globalPos = label->mapToGlobal(pos);
 
-    QPoint globalPos = label->mapToGlobal(pos);
+  QMenu contextMenu;
+  contextMenu.addAction(CompanionIcon("copy.png"), tr("Copy"),this,SLOT(cmCopy()));
+  contextMenu.addAction(CompanionIcon("cut.png"), tr("Cut"),this,SLOT(cmCut()));
+  contextMenu.addAction(CompanionIcon("paste.png"), tr("Paste"),this,SLOT(cmPaste()))->setEnabled(hasClipboardData());
+  contextMenu.addAction(CompanionIcon("clear.png"), tr("Clear"),this,SLOT(cmClear()));
+  contextMenu.addSeparator();
+  contextMenu.addAction(CompanionIcon("arrow-right.png"), tr("Insert"),this,SLOT(cmInsert()))->setEnabled(insertAllowed());
+  contextMenu.addAction(CompanionIcon("arrow-left.png"), tr("Delete"),this,SLOT(cmDelete()));
+  contextMenu.addAction(CompanionIcon("moveup.png"), tr("Move Up"),this,SLOT(cmMoveUp()))->setEnabled(moveUpAllowed());
+  contextMenu.addAction(CompanionIcon("movedown.png"), tr("Move Down"),this,SLOT(cmMoveDown()))->setEnabled(moveDownAllowed());
+  contextMenu.addSeparator();
+  contextMenu.addAction(CompanionIcon("clear.png"), tr("Clear All"),this,SLOT(cmClearAll()));
 
-    const QClipboard *clipboard = QApplication::clipboard();
-    const QMimeData *mimeData = clipboard->mimeData();
-    bool hasData = mimeData->hasFormat("application/x-companion-chn");
+  contextMenu.exec(globalPos);
+}
 
-    QMenu contextMenu;
-    contextMenu.addAction(CompanionIcon("copy.png"), tr("&Copy"),this,SLOT(chnCopy()));
-    contextMenu.addAction(CompanionIcon("cut.png"), tr("&Cut"),this,SLOT(chnCut()));
-    contextMenu.addAction(CompanionIcon("paste.png"), tr("&Paste"),this,SLOT(chnPaste()))->setEnabled(hasData);
-    contextMenu.addAction(CompanionIcon("clear.png"), tr("&Delete"),this,SLOT(chnDelete()));
+bool Channels::hasClipboardData(QByteArray * data) const
+{
+  const QClipboard * clipboard = QApplication::clipboard();
+  const QMimeData * mimeData = clipboard->mimeData();
+  if (mimeData->hasFormat(MIMETYPE_CHANNEL)) {
+    if (data)
+      data->append(mimeData->data(MIMETYPE_CHANNEL));
+    return true;
+  }
+  return false;
+}
 
-    contextMenu.exec(globalPos);
+bool Channels::insertAllowed() const
+{
+  return ((selectedIndex < chnCapability - 1) && (model->limitData[chnCapability - 1].isEmpty()));
+}
+
+bool Channels::moveDownAllowed() const
+{
+  return selectedIndex < chnCapability - 1;
+}
+
+bool Channels::moveUpAllowed() const
+{
+  return selectedIndex > 0;
+}
+
+void Channels::cmMoveUp()
+{
+  swapData(selectedIndex, selectedIndex - 1);
+}
+
+void Channels::cmMoveDown()
+{
+  swapData(selectedIndex, selectedIndex + 1);
+}
+
+void Channels::cmClear(bool prompt)
+{
+  if (prompt) {
+    if (QMessageBox::question(this, CPN_STR_APP_NAME, tr("Clear Channel. Are you sure?"), QMessageBox::Yes | QMessageBox::No) == QMessageBox::No)
+      return;
+  }
+
+  model->limitData[selectedIndex].clear();
+  model->updateAllReferences(ModelData::REF_UPD_TYPE_CHANNEL, ModelData::REF_UPD_ACT_CLEAR, selectedIndex);
+  updateLine(selectedIndex);
+  emit modified();
+}
+
+void Channels::cmClearAll()
+{
+  if (QMessageBox::question(this, CPN_STR_APP_NAME, tr("Clear all Channels. Are you sure?"), QMessageBox::Yes | QMessageBox::No) == QMessageBox::No)
+    return;
+
+  for (int i = 0; i < chnCapability; i++) {
+    model->limitData[i].clear();
+    model->updateAllReferences(ModelData::REF_UPD_TYPE_CHANNEL, ModelData::REF_UPD_ACT_CLEAR, i);
+    updateLine(i);
+  }
+  emit modified();
+}
+
+void Channels::cmInsert()
+{
+  memmove(&model->limitData[selectedIndex + 1], &model->limitData[selectedIndex], (CPN_MAX_CHNOUT - (selectedIndex + 1)) * sizeof(LimitData));
+  model->limitData[selectedIndex].clear();
+  model->updateAllReferences(ModelData::REF_UPD_TYPE_CHANNEL, ModelData::REF_UPD_ACT_SHIFT, selectedIndex, 0, 1);
+  update();
+  emit modified();
+}
+
+void Channels::swapData(int idx1, int idx2)
+{
+  if ((idx1 != idx2) && (!model->limitData[idx1].isEmpty() || !model->limitData[idx2].isEmpty())) {
+    LimitData chntmp = model->limitData[idx2];
+    LimitData *chn1 = &model->limitData[idx1];
+    LimitData *chn2 = &model->limitData[idx2];
+    memcpy(chn2, chn1, sizeof(LimitData));
+    memcpy(chn1, &chntmp, sizeof(LimitData));
+    model->updateAllReferences(ModelData::REF_UPD_TYPE_CHANNEL, ModelData::REF_UPD_ACT_SWAP, idx1, idx2);
+    updateLine(idx1);
+    updateLine(idx2);
+    emit modified();
+  }
 }

@@ -30,6 +30,8 @@ class RawSourceFilterItemModel;
 class RawSwitchFilterItemModel;
 class TimerEdit;
 
+constexpr char MIMETYPE_CUSTOM_FUNCTION[] = "application/x-companion-custom-function";
+
 class RepeatComboBox: public QComboBox
 {
     Q_OBJECT
@@ -53,7 +55,7 @@ class CustomFunctionsPanel : public GenericPanel
   Q_OBJECT
 
   public:
-    CustomFunctionsPanel(QWidget *parent, ModelData * mode, GeneralSettings & generalSettings, Firmware * firmware);
+    CustomFunctionsPanel(QWidget *parent, ModelData * model, GeneralSettings & generalSettings, Firmware * firmware);
     ~CustomFunctionsPanel();
 
     virtual void update();
@@ -65,7 +67,7 @@ class CustomFunctionsPanel : public GenericPanel
     void updateDataModels();
     void customFunctionEdited();
     void functionEdited();
-    void fsw_customContextMenuRequested(QPoint pos);
+    void onCustomContextMenuRequested(QPoint pos);
     void refreshCustomFunction(int index, bool modified=false);
     void onChildModified();
     bool playSound(int index);
@@ -73,15 +75,26 @@ class CustomFunctionsPanel : public GenericPanel
     void toggleSound(bool play);
     void onMediaPlayerStateChanged(QMediaPlayer::State state);
     void onMediaPlayerError(QMediaPlayer::Error error);
-    void fswDelete();
-    void fswCopy();
-    void fswPaste();
-    void fswCut();
+    void cmDelete();
+    void cmCopy();
+    void cmPaste();
+    void cmCut();
+    void cmMoveUp();
+    void cmMoveDown();
+    void cmInsert();
+    void cmClear(bool prompt = true);
+    void cmClearAll();
 
   private:
     void populateFuncCB(QComboBox *b, unsigned int value);
     void populateGVmodeCB(QComboBox *b, unsigned int value);
     void populateFuncParamCB(QComboBox *b, uint function, unsigned int value, unsigned int adjustmode=0);
+    bool hasClipboardData(QByteArray * data = nullptr) const;
+    bool insertAllowed() const;
+    bool moveDownAllowed() const;
+    bool moveUpAllowed() const;
+    void swapData(int idx1, int idx2);
+    void resetCBsAndRefresh(int idx);
     RawSwitchFilterItemModel * rawSwitchItemModel;
     RawSourceFilterItemModel * rawSrcAllItemModel;
     RawSourceFilterItemModel * rawSrcInputsItemModel;
@@ -104,7 +117,8 @@ class CustomFunctionsPanel : public GenericPanel
     QSlider * fswtchBLcolor[CPN_MAX_SPECIAL_FUNCTIONS];
     QMediaPlayer * mediaPlayer;
 
-    int selectedFunction;
+    int selectedIndex;
+    int fswCapability;
 
 };
 
