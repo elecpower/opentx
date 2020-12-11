@@ -153,7 +153,8 @@ enum Capability {
   HasSwitchableJack,
   HasSportConnector,
   PwrButtonPress,
-  Sensors
+  Sensors,
+  ModelImageMaxLength
 };
 
 class EEPROMInterface

@@ -675,9 +675,12 @@ QString Helpers::getChecklistsPath()
 
 QString Helpers::getChecklistFilename(const ModelData * model)
 {
-  QString name = model->name;
-  name.replace(" ", "_");
-  name.append(".txt");          // TODO : add to constants
+  QString name;
+  if (model) {
+    name.append(model->name);
+    name.replace(" ", "_");
+    name.append(".txt");          // TODO : add to constants
+  }
   return name;
 }
 
@@ -713,4 +716,106 @@ QString Helpers::removeAccents(const QString & str)
       result.replace(it.value().toString(), it.key());
   }
   return result;
+}
+
+QString Helpers::getSDCardPath(SDCardFileType fileType, GeneralSettings * generalSettings) const
+{
+  if (fileType < SDCFT_Root || fileType > SDCFT_MaxType)
+    return "";
+
+  QString ret = g.profile[g.id()].sdPath();
+  if (ret.trim() == "")
+    return "";
+
+  if (fileType > SDCFT_Root)
+    ret.append("/");
+
+  QStringList sl = { "",
+                     "EEPROM",
+                     "FIRMWARE",
+                     "IMAGES",
+                     "LOGS",
+                     "MODELS",
+                     "MODELS",
+                     "SCREENSHOTS",
+                     "SCRIPTS",
+                     "SCRIPTS/FUNCTIONS",
+                     "SCRIPTS/MIXES",
+                     "SCRIPTS/TELEMETRY",
+                     "SCRIPTS/WIZARD",
+                     "SOUNDS/?language?",
+                     "SOUNDS/?language?/SYSTEM",
+                     "SxR Calibrate",
+                     "THEMES",
+                     "WIDGETS"
+  };
+
+  ret.append(sl.at(fileType));
+  if (ret.conatins("?language?")) {
+    QString lang = generalSettings->ttsLanguage;
+    if (lang.isEmpty())
+      lang = "en";
+    ret.replace("?language?", lang);
+  }
+
+  return QDir::toNativeSeparators(ret);
+}
+
+void Helpers::getSDCardFileTypeFilter(SDCardFileType fileType = SDCFT_Root, GeneralSettings * generalSettings, SDCardFileTypeFilter & filter) const
+{
+  const Board::Type board = getCurrentBoard();
+  Firmware * firmware = getCurrentFirmware();
+
+  filter.path = getSDCardPath(fileType, generalSettings);
+  filter.flags = QDir::Files;
+  filter.maxLen = 255;
+
+  switch (fileType) {
+    case SDCFT_Eeprom:
+      filter.name << "*.bin" << "*.hex";
+      break;
+    case SDCFT_Firmware:
+      filter.name << "*.bin" << "*.frk";
+      break;
+    case SDCFT_Images:
+      filter.maxLen = firmware->getCapability(ModelImageMaxLength);
+      if (IS_FAMILY_HORUS_OR_T16(board))
+        filter.name << "*.bmp" << "*.jpg" << "*.png";
+      else
+        filter.name << "*.bmp";
+      break;
+    case SDCFT_Logs:
+      filter.name << "*.csv";
+      break;
+    case SDCFT_Models:
+      filter.name << "*.bin";
+      break;
+    case SDCFT_Models_Checklists
+      filter.name << "*.txt";
+      break;
+    case SDCFT_Screenshots:
+      filter.name << "*.bmp";
+      break;
+    case SDCFT_Scripts:
+    case SDCFT_Scripts_Functions:
+    case SDCFT_Scripts_Mixes:
+    case SDCFT_Scripts_Telemetry:
+    case SDCFT_Scripts_Tools:
+    case SDCFT_Scripts_Wizard:
+    case SDCFT_SxR_Calibrate:
+    case SDCFT_Themes:
+    case SDCFT_Widgets:
+      filter.maxLen = firmware->getCapability(VoicesMaxLength);
+      filter.name << "*.lua";
+      break;
+    case SDCFT_Sounds:
+    case SDCFT_Sounds_System:
+      filter.maxLen = firmware->getCapability(VoicesMaxLength);
+      filter.name << "*.wav";
+      break;
+
+    default:
+      filter.name << "*.*";
+      break;
+  }
 }

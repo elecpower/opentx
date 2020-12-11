@@ -711,6 +711,11 @@ int OpenTxFirmware::getCapability(::Capability capability)
         return 60;
       else
         return 40;
+    case ModelImageMaxLength:
+      if (IS_FAMILY_HORUS_OR_T16(board))
+        return 10; // 6 + 4
+      else
+        return 14; // 10 + 4
     default:
       return 0;
   }

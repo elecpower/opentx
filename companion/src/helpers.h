@@ -114,6 +114,40 @@ namespace Helpers
   QString getChecklistFilePath(const ModelData * model);
   QString removeAccents(const QString & str);
 
+  enum SDCardFileType {
+    SDCFT_Root,
+    SDCFT_Eeprom,
+    SDCFT_Firmware,
+    SDCFT_Images,
+    SDCFT_Logs,
+    SDCFT_Models,
+    SDCFT_Models_Checklists,
+    SDCFT_Screenshots,
+    SDCFT_Scripts,
+    SDCFT_Scripts_Functions,
+    SDCFT_Scripts_Mixes,
+    SDCFT_Scripts_Telemetry,
+    SDCFT_Scripts_Tools,
+    SDCFT_Scripts_Wizard,
+    SDCFT_Sounds,
+    SDCFT_Sounds_System,
+    SDCFT_SxR_Calibrate,
+    SDCFT_Themes,
+    SDCFT_Widgets,
+    SDCFT_MaxType = SDCFT_Widgets
+  };
+  Q_ENUM(SDCardFileType)
+
+  struct SDCardFileTypeFilter
+  {
+    QString path;
+    QStringList name;
+    QDir::Filters flags;
+    int maxLen;
+  };
+
+  void getSDCardFileTypeFilter(SDCardFileType fileType = SDCFT_Root, GeneralSettings * generalSettings, SDCardFileTypeFilter & filter) const;
+
 }  // namespace Helpers
 
 // TODO : move globals to Helpers namespace
