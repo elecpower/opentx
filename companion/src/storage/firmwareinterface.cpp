@@ -31,6 +31,7 @@
 #define DATE_MARK   "DATE"
 #define TIME_MARK   "TIME"
 #define EEPR_MARK   "EEPR"
+#define SDVER_MARK  "req SD ver"
 #define FSIZE_MAX   Boards::getFlashSize(Board::BOARD_UNKNOWN)
 
 FirmwareInterface::FirmwareInterface(const QString & filename):
@@ -42,7 +43,8 @@ FirmwareInterface::FirmwareInterface(const QString & filename):
   splashSize(0),
   splashWidth(0),
   splashHeight(0),
-  isValidFlag(false)
+  isValidFlag(false),
+  reqSDVersion(NULL)
 {
   if (!filename.isEmpty()) {
     QFile file(filename);
@@ -68,6 +70,7 @@ FirmwareInterface::FirmwareInterface(const QString & filename):
     }
     date = seekLabel(DATE_MARK);
     time = seekLabel(TIME_MARK);
+    reqSDVersion = seekLabel(SDVER_MARK);
     eepromId = seekLabel(EEPR_MARK);
 
     if (eepromId.contains('-')) {

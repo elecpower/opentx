@@ -56,7 +56,7 @@ class MainWindow : public QMainWindow
     QString seekCodeString(const QByteArray & qba, const QString & label) const;
 
   protected slots:
-    void dowloadLastFirmwareUpdate();
+    void downloadLastFirmwareUpdate();
     void startFirmwareDownload();
     virtual void closeEvent(QCloseEvent *event);
     virtual void changeEvent(QEvent *e);
@@ -84,6 +84,7 @@ class MainWindow : public QMainWindow
 
     void checkForUpdates();
     void checkForFirmwareUpdate();
+    void checkForSDCardUpdate();
 
     void checkForCompanionUpdateFinished(QNetworkReply * reply);
     void checkForFirmwareUpdateFinished(QNetworkReply * reply);
@@ -93,6 +94,7 @@ class MainWindow : public QMainWindow
     void doUpdates();
     void updateDownloaded();
     void firmwareDownloadAccepted();
+    void downloadLastSDUpdate();
     void newFile();
     void openFile();
     void save();

@@ -57,6 +57,7 @@ class FirmwareInterface
     QImage::Format getSplashFormat();
     unsigned int save(const QString & fileName);
     bool isValid();
+    inline QString getReqSDVersion() { return reqSDVersion; }
 
   private:
     QByteArray flash;
@@ -81,6 +82,7 @@ class FirmwareInterface
     uint splashHeight;
     QImage::Format splash_format;
     bool isValidFlag;
+    QString reqSDVersion;
 };
 
 #endif // _FIRMWAREINTERFACE_H_

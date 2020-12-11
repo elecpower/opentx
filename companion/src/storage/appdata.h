@@ -63,6 +63,7 @@
 #define CPN_URL_DOWNLOAD_CUR_REL   CPN_URL_DOWNLOAD_CUR_VERS "release/"
 #define CPN_URL_DOWNLOAD_CUR_RC    CPN_URL_DOWNLOAD_CUR_VERS "rc/"
 #define CPN_URL_DOWNLOAD_CUR_UNST  CPN_URL_DOWNLOAD_CUR_VERS "nightlies/"
+#define CPN_URL_DOWNLOAD_SD_FLDR   "sdcard/"
 
 #define MAX_PROFILES 15
 #define MAX_JOYSTICKS 8
@@ -311,6 +312,7 @@ class AppData;
 
 
 //! \brief FwRevision class stores data about downloaded firmware binaries. It uses dynamic key names and does not have any properties.
+//! \todo TODO: Store Required SD Version as a property to improve SD image handling
 class FwRevision: public CompStoreObj
 {
   Q_OBJECT
@@ -324,6 +326,11 @@ class FwRevision: public CompStoreObj
     explicit FwRevision() : CompStoreObj() { CompStoreObj::addDynamicPropertyGroup(propertyGroup()); }
     QString propertyGroup() const override { return QStringLiteral("FwRevisions"); }
     friend class AppData;
+
+  /*  TODO
+  private:
+    PROPERTYSTR(sdVersion)
+  */
 };
 
 
@@ -376,7 +383,14 @@ class Profile: public CompStoreObj
     PROPERTYSTR2(splashFile, "SplashFileName")
     PROPERTYSTR(fwName)
     PROPERTYSTR(fwType)
+
     PROPERTYSTR(sdPath)
+    PROPERTYSTR(sdPathCustom)
+    PROPERTYSTR(sdLastZipVersion)
+    PROPERTYSTR(sdLastZipSrcFile)
+    PROPERTYSTR(sdLastZipDestFile)
+    PROPERTYSTR(sdLastZipFolder)
+
     PROPERTYSTR(pBackupDir)
 
     PROPERTY4(int, channelOrder, "default_channel_order",  0)
@@ -510,6 +524,8 @@ class AppData: public CompStoreObj
       return urlList.value(type, CPN_URL_DOWNLOAD_CUR_VERS);
     }
 
+    inline QString openTxCurrentDownloadBranchSDCardUrl() const { return openTxCurrentDownloadBranchUrl() % CPN_URL_DOWNLOAD_SD_FLDR); }
+
     Profile    profile[MAX_PROFILES];
     JStickData joystick[MAX_JOYSTICKS];
     FwRevision fwRev;
@@ -577,6 +593,7 @@ class AppData: public CompStoreObj
     PROPERTY4(bool, autoCheckFw,     "startup_check_fw",        true)
     PROPERTY4(bool, promptProfile,   "startup_prompt_profile",  false)
 
+    PROPERTY(bool, startup_check_sdcard,       true)
     PROPERTY(bool, enableBackup,               false)
     PROPERTY(bool, backupOnFlash,              true)
     PROPERTY(bool, outputDisplayDetails,       false)

@@ -248,6 +248,8 @@ set(companion_SRCS
   styleeditdialog.cpp
   dialogs/filesyncdialog.cpp         # TODO move to own lib with other dialogs
   profilechooser.cpp
+  sdcardinterface.cpp
+  process_sdcard.cpp
   )
 
 set(companion_MOC_HDRS
@@ -281,7 +283,12 @@ set(companion_MOC_HDRS
   styleeditdialog.h
   helpers_html.h
   dialogs/filesyncdialog.h
+<<<<<<< HEAD
+  sdcardinterface.h
+  process_sdcard.h
+=======
   profilechooser.h
+>>>>>>> upstream/2.3
   )
 
 set(companion_UIS
@@ -515,7 +522,7 @@ IF(APPLE)
   # Use a non standard Info.plist that adds Retina support flags
   set_target_properties(${COMPANION_NAME} PROPERTIES MACOSX_BUNDLE_INFO_PLIST ${PROJECT_SOURCE_DIR}/companion/targets/mac/MacOSXBundleInfo.plist.in)
   set_target_properties(${SIMULATOR_NAME} PROPERTIES MACOSX_BUNDLE_INFO_PLIST ${PROJECT_SOURCE_DIR}/companion/targets/mac/MacOSXBundleInfo.plist.in)
-  
+
   set(MACOSX_BUNDLE_GUI_IDENTIFIER "org.opentx.companion")
 
   INSTALL(TARGETS ${COMPANION_NAME}

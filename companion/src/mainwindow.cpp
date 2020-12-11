@@ -46,6 +46,8 @@
 #include "progresswidget.h"
 #include "storage.h"
 #include "translations.h"
+#include "sdcardinterface.h"
+#include "process_sd_dwnld.h"
 
 #include "dialogs/filesyncdialog.h"
 #include "profilechooser.h"
@@ -58,12 +60,15 @@
 #include <QNetworkProxyFactory>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QFile>
+#include <QDir>
 
 // update check flags
 #define CHECK_COMPANION        1
 #define CHECK_FIRMWARE         2
-#define INTERACTIVE_DOWNLOAD   4
-#define AUTOMATIC_DOWNLOAD     8
+#define CHECK_SDIMAGE          4
+#define INTERACTIVE_DOWNLOAD   8
+#define AUTOMATIC_DOWNLOAD     16
 
 #define OPENTX_DOWNLOADS_PAGE_URL         QStringLiteral("http://www.open-tx.org/downloads")
 #define DONATE_STR                        QStringLiteral("https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=QUZ48K4SEXDP2")
@@ -130,7 +135,7 @@ MainWindow::MainWindow():
   else {
     if (!g.previousVersion().isEmpty())
       g.warningId(g.warningId() | AppMessages::MSG_UPGRADED);
-    
+
     if (g.promptProfile()) {
       chooseProfile();
     }
@@ -227,12 +232,14 @@ void MainWindow::doAutoUpdates()
     checkForUpdatesState |= CHECK_COMPANION;
   if (g.autoCheckFw())
     checkForUpdatesState |= CHECK_FIRMWARE;
+  if (g.startup_check_sdcard())
+    checkForUpdatesState |= CHECK_SDIMAGE;
   checkForUpdates();
 }
 
 void MainWindow::doUpdates()
 {
-  checkForUpdatesState = CHECK_COMPANION | CHECK_FIRMWARE | INTERACTIVE_DOWNLOAD;
+  checkForUpdatesState = CHECK_COMPANION | CHECK_FIRMWARE | CHECK_SDIMAGE | INTERACTIVE_DOWNLOAD;
   checkForUpdates();
 }
 
@@ -242,7 +249,7 @@ void MainWindow::checkForFirmwareUpdate()
   checkForUpdates();
 }
 
-void MainWindow::dowloadLastFirmwareUpdate()
+void MainWindow::downloadLastFirmwareUpdate()
 {
   checkForUpdatesState = CHECK_FIRMWARE | AUTOMATIC_DOWNLOAD | INTERACTIVE_DOWNLOAD;
   checkForUpdates();
@@ -255,7 +262,7 @@ QString MainWindow::getCompanionUpdateBaseUrl() const
 
 void MainWindow::checkForUpdates()
 {
-  if (!(checkForUpdatesState & (CHECK_COMPANION | CHECK_FIRMWARE))) {
+  if (!(checkForUpdatesState & (CHECK_COMPANION | CHECK_FIRMWARE | CHECK_SDCARD))) {
     if (networkManager) {
       networkManager->deleteLater();
       networkManager = nullptr;
@@ -288,6 +295,13 @@ void MainWindow::checkForUpdates()
       connect(networkManager, &QNetworkAccessManager::finished, this, &MainWindow::checkForFirmwareUpdateFinished);
       qDebug() << "Checking for firmware update " << url.url();
     }
+  }
+  else if (checkForUpdatesState & CHECK_SDIMAGE) {
+    checkForUpdatesState -= CHECK_SDIMAGE;
+    qDebug() << "Checking for SD card update";
+    checkForSDCardUpdate();
+    checkForUpdates();
+    return;
   }
   if (!url.isValid()) {
     checkForUpdates();
@@ -1807,5 +1821,31 @@ void MainWindow::chooseProfile()
 
     if (!checkProfileRadioExists(g.sessionId()))
       g.warningId(g.warningId() | AppMessages::MSG_NO_RADIO_TYPE);
+  }
+}
+
+void MainWindow::checkForSDCardUpdate()
+{
+  if (SDCardInterface::isUpdateAvailable) {
+    int ret = QMessageBox::question(this, CPN_STR_APP_NAME, tr("A newer version of the SD card image is available (version %1)<br>"
+                                                        "Would you like to download it?").arg(CPN_SDCARD_REQ_VERSION) ,
+                                    QMessageBox::Yes | QMessageBox::No);
+    if (ret == QMessageBox::Yes) {
+      downloadLastSDUpdate();
+    }
+  }
+}
+
+void MainWindow::downloadLastSDUpdate()
+{
+  SDCardInterface sd;
+  QString url = sd.downloadZipUrl();
+  QString dest = QFileDialog::getSaveFileName(this, tr("Save As"), sd.defaultDestZipPath(), ZIP_FILES_FILTER);
+  if (!dest.isEmpty()) {
+    qDebug() << "Downloading SD image " << url << " to " << dest;
+    sd.setLastZip(dest);
+    downloadDialog * dd = new downloadDialog(this, url, dest);
+    connect(dd, SIGNAL(accepted()), this, SLOT(&sd.updateSDImage()));
+    dd->exec();
   }
 }
